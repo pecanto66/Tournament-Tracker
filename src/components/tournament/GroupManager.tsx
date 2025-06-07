@@ -3,14 +3,14 @@
 
 import type { Group, Team, Player, PlayerPosition, Match, MatchResult } from '@/types/tournament';
 import { playerPositions, playerPositionTranslations, matchResults, matchResultTranslations, goalOptions } from '@/types/tournament';
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
-import { PlusCircle, Users, Shield, UserPlus, Trash2, Edit3, Save, XCircle, Swords, Target, Trophy as TrophyIcon, Download, RefreshCcw } from 'lucide-react';
+import { PlusCircle, Users, Shield, UserPlus, Trash2, Edit3, Save, XCircle, Swords, Target, Trophy as TrophyIcon, Download, RefreshCcw, Upload, Printer } from 'lucide-react';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import {
   AlertDialog,
@@ -34,12 +34,25 @@ export function GroupManager() {
   const [newGroupName, setNewGroupName] = useState('');
   const [tournamentScorer, setTournamentScorer] = useState<ScorerInfo | null>(null);
   const { toast } = useToast();
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Effect to load data from localStorage on component mount
   useEffect(() => {
     const savedGroups = localStorage.getItem('tournamentGroups');
     if (savedGroups) {
-      setGroups(JSON.parse(savedGroups));
+      try {
+        const parsedGroups = JSON.parse(savedGroups);
+        // Basic validation for loaded groups
+        if (Array.isArray(parsedGroups) && parsedGroups.every(group => group.id && group.name && Array.isArray(group.teams) && Array.isArray(group.matches))) {
+          setGroups(parsedGroups);
+        } else {
+          console.error("Invalid data structure in localStorage. Resetting.");
+          localStorage.removeItem('tournamentGroups');
+        }
+      } catch (error) {
+        console.error("Failed to parse groups from localStorage:", error);
+        localStorage.removeItem('tournamentGroups'); // Clear corrupted data
+      }
     }
   }, []);
 
@@ -330,8 +343,83 @@ export function GroupManager() {
     setGroups([]);
     setNewGroupName('');
     setTournamentScorer(null);
-    // The useEffect hook watching 'groups' will clear localStorage.
     toast({ title: "نجاح", description: "تمت إعادة تعيين جميع بيانات البطولة.", variant: "default" });
+  };
+
+  const handleImportTrigger = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileSelected = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) {
+      toast({ title: "خطأ", description: "لم يتم تحديد أي ملف.", variant: "destructive" });
+      return;
+    }
+
+    if (file.type !== "application/json") {
+      toast({ title: "خطأ", description: "الرجاء تحديد ملف JSON صالح.", variant: "destructive" });
+      if (event.target) event.target.value = ''; // Reset file input
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      try {
+        const text = e.target?.result;
+        if (typeof text === 'string') {
+          const importedGroups = JSON.parse(text) as Group[];
+          // Basic validation for the imported structure
+          if (Array.isArray(importedGroups) && 
+              importedGroups.every(group => 
+                typeof group.id === 'string' && 
+                typeof group.name === 'string' && 
+                Array.isArray(group.teams) && 
+                Array.isArray(group.matches) &&
+                group.teams.every(team => 
+                    typeof team.id === 'string' &&
+                    typeof team.name === 'string' &&
+                    Array.isArray(team.players) &&
+                    typeof team.points === 'number' &&
+                    team.players.every(player => 
+                        typeof player.id === 'string' &&
+                        typeof player.name === 'string' &&
+                        typeof player.goals === 'number' &&
+                        playerPositions.includes(player.position)
+                    )
+                ) &&
+                group.matches.every(match =>
+                    typeof match.id === 'string' &&
+                    typeof match.teamAId === 'string' &&
+                    typeof match.teamBId === 'string' 
+                )
+              )
+            ) {
+            setGroups(importedGroups);
+            toast({ title: "نجاح", description: "تم استيراد البيانات بنجاح." });
+          } else {
+            throw new Error("ملف JSON ببنية بيانات غير صالحة.");
+          }
+        } else {
+          throw new Error("فشل قراءة محتوى الملف.");
+        }
+      } catch (error: any) {
+        console.error("Failed to import data:", error);
+        toast({ title: "خطأ", description: `فشل استيراد البيانات. ${error.message || "تأكد من أن الملف بالتنسيق الصحيح."}`, variant: "destructive" });
+      } finally {
+          if(event.target) event.target.value = ''; // Reset file input to allow re-upload of same file
+      }
+    };
+    reader.onerror = () => {
+      toast({ title: "خطأ", description: "فشل قراءة الملف.", variant: "destructive" });
+      if(event.target) event.target.value = ''; // Reset file input
+    };
+    reader.readAsText(file);
+  };
+
+  const handlePrintData = () => {
+    window.print();
+    toast({ title: "طباعة", description: "تم إرسال البيانات إلى نافذة الطباعة." });
   };
 
 
@@ -367,13 +455,27 @@ export function GroupManager() {
              إدارة بيانات البطولة
           </CardTitle>
         </CardHeader>
-        <CardContent className="flex flex-col sm:flex-row gap-4">
-          <Button onClick={handleBackupData} variant="outline" className="flex-1">
+        <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <Input 
+            type="file" 
+            ref={fileInputRef} 
+            onChange={handleFileSelected} 
+            accept=".json" 
+            className="hidden" 
+            id="import-file-input"
+          />
+          <Button onClick={handleImportTrigger} variant="outline">
+            <Upload className="ml-2 h-5 w-5" /> استيراد بيانات
+          </Button>
+          <Button onClick={handleBackupData} variant="outline">
             <Download className="ml-2 h-5 w-5" /> تصدير كل البيانات
+          </Button>
+          <Button onClick={handlePrintData} variant="outline">
+            <Printer className="ml-2 h-5 w-5" /> طباعة كل البيانات
           </Button>
           <AlertDialog>
             <AlertDialogTrigger asChild>
-              <Button variant="destructive" className="flex-1">
+              <Button variant="destructive">
                 <RefreshCcw className="ml-2 h-5 w-5" /> إعادة تعيين كل البيانات
               </Button>
             </AlertDialogTrigger>
@@ -570,9 +672,27 @@ function GroupCard({ group, onAddTeam, onDeleteTeam, onAddPlayer, onDeletePlayer
                 </p>
             )}
           </div>
-          <Button variant="ghost" size="icon" onClick={() => onDeleteGroup(group.id)} className="text-destructive hover:text-destructive/80">
-            <Trash2 className="w-5 h-5" />
-          </Button>
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+                <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive/80">
+                    <Trash2 className="w-5 h-5" />
+                </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent dir="rtl">
+              <AlertDialogHeader>
+                <AlertDialogTitle>هل أنت متأكد من حذف المجموعة {group.name}؟</AlertDialogTitle>
+                <AlertDialogDescription>
+                  سيؤدي هذا الإجراء إلى حذف المجموعة وجميع الفرق واللاعبين والمباريات المرتبطة بها بشكل دائم. لا يمكن التراجع عن هذا الإجراء.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>إلغاء</AlertDialogCancel>
+                <AlertDialogAction onClick={() => onDeleteGroup(group.id)}>
+                  نعم، قم بالحذف
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </div>
       </CardHeader>
       <CardContent className="pt-6 space-y-6 flex-grow">
@@ -609,9 +729,27 @@ function GroupCard({ group, onAddTeam, onDeleteTeam, onAddPlayer, onDeletePlayer
                         (له: {team.goalsFor ?? 0}, عليه: {team.goalsAgainst ?? 0}, الفرق: {team.goalDifference ?? 0})
                       </span>
                     </h4>
-                    <Button variant="ghost" size="icon" onClick={() => onDeleteTeam(group.id, team.id)} className="text-destructive hover:text-destructive/80">
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
+                     <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                            <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive/80">
+                                <Trash2 className="w-4 h-4" />
+                            </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent dir="rtl">
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>هل أنت متأكد من حذف الفريق {team.name}؟</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              سيؤدي هذا الإجراء إلى حذف الفريق وجميع لاعبيه والمباريات المرتبطة به بشكل دائم. لا يمكن التراجع عن هذا الإجراء.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>إلغاء</AlertDialogCancel>
+                            <AlertDialogAction onClick={() => onDeleteTeam(group.id, team.id)}>
+                              نعم، قم بالحذف
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
                   </div>
                   
                   <Accordion type="single" collapsible className="w-full">
@@ -748,3 +886,4 @@ function GroupCard({ group, onAddTeam, onDeleteTeam, onAddPlayer, onDeletePlayer
     </Card>
   );
 }
+
