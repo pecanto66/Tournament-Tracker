@@ -53,9 +53,13 @@ export interface Team {
   name: string;
   players: Player[];
   points: number;
-  goalsFor?: number;
-  goalsAgainst?: number;
-  goalDifference?: number; 
+  played: number;
+  won: number;
+  drawn: number;
+  lost: number;
+  goalsFor: number;
+  goalsAgainst: number;
+  goalDifference: number;
 }
 
 export interface Match {
@@ -63,9 +67,7 @@ export interface Match {
   teamAId: string;
   teamBId: string;
   teamAResult?: MatchResult;
-  // teamAScore and teamBScore were for points allocation, not actual goals
-  // Let's add actual scores
-  teamAScoreActual?: number; 
+  teamAScoreActual?: number;
   teamBScoreActual?: number;
 }
 
@@ -75,3 +77,4 @@ export interface Group {
   teams: Team[];
   matches: Match[];
 }
+

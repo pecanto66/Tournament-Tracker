@@ -10,7 +10,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
-import { PlusCircle, Users, Shield, UserPlus, Trash2, Edit3, Save, XCircle, Swords, Target, Trophy as TrophyIcon, Download, RefreshCcw, Upload, Printer } from 'lucide-react';
+import { PlusCircle, Users, UserPlus, Trash2, Edit3, Save, XCircle, Swords, Target, Trophy as TrophyIcon, Download, RefreshCcw, Upload, Printer, ListOrdered } from 'lucide-react';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import {
   AlertDialog,
@@ -23,10 +23,68 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
 
-// Define a type for scorers that includes team and group context
 type ScorerInfo = Player & { teamName: string; groupName?: string };
+
+const calculateTeamStats = (teams: Team[], matches: Match[]): Team[] => {
+  return teams.map(team => {
+    let points = 0;
+    let played = 0;
+    let won = 0;
+    let drawn = 0;
+    let lost = 0;
+    let goalsFor = 0;
+    let goalsAgainst = 0;
+
+    matches.forEach(match => {
+      if (!match.teamAResult) return; 
+
+      const teamAScore = match.teamAScoreActual ?? 0;
+      const teamBScore = match.teamBScoreActual ?? 0;
+
+      if (match.teamAId === team.id) {
+        played++;
+        goalsFor += teamAScore;
+        goalsAgainst += teamBScore;
+        if (match.teamAResult === 'Win') {
+          points += 3;
+          won++;
+        } else if (match.teamAResult === 'Draw') {
+          points += 1;
+          drawn++;
+        } else { 
+          lost++;
+        }
+      } else if (match.teamBId === team.id) {
+        played++;
+        goalsFor += teamBScore;
+        goalsAgainst += teamAScore;
+        if (match.teamAResult === 'Loss') { 
+          points += 3;
+          won++;
+        } else if (match.teamAResult === 'Draw') {
+          points += 1;
+          drawn++;
+        } else { 
+          lost++;
+        }
+      }
+    });
+    return {
+      ...team,
+      points,
+      played,
+      won,
+      drawn,
+      lost,
+      goalsFor,
+      goalsAgainst,
+      goalDifference: goalsFor - goalsAgainst,
+    };
+  });
+};
 
 
 export function GroupManager() {
@@ -36,28 +94,63 @@ export function GroupManager() {
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Effect to load data from localStorage on component mount
   useEffect(() => {
     const savedGroups = localStorage.getItem('tournamentGroups');
     if (savedGroups) {
       try {
-        const parsedGroups = JSON.parse(savedGroups);
-        // Basic validation for loaded groups
-        if (Array.isArray(parsedGroups) && parsedGroups.every(group => group.id && group.name && Array.isArray(group.teams) && Array.isArray(group.matches))) {
-          setGroups(parsedGroups);
+        let parsedGroups = JSON.parse(savedGroups) as Group[];
+        if (Array.isArray(parsedGroups)) {
+          parsedGroups = parsedGroups.map(group => ({
+            ...group,
+            id: group.id || crypto.randomUUID(),
+            name: group.name || "Unnamed Group",
+            teams: Array.isArray(group.teams) ? group.teams.map(team => ({
+              ...team,
+              id: team.id || crypto.randomUUID(),
+              name: team.name || "Unnamed Team",
+              players: Array.isArray(team.players) ? team.players.map(player => ({
+                ...player,
+                id: player.id || crypto.randomUUID(),
+                name: player.name || "Unnamed Player",
+                position: player.position || "Center Forward",
+                goals: typeof player.goals === 'number' ? player.goals : 0,
+              })) : [],
+              points: typeof team.points === 'number' ? team.points : 0,
+              played: typeof team.played === 'number' ? team.played : 0,
+              won: typeof team.won === 'number' ? team.won : 0,
+              drawn: typeof team.drawn === 'number' ? team.drawn : 0,
+              lost: typeof team.lost === 'number' ? team.lost : 0,
+              goalsFor: typeof team.goalsFor === 'number' ? team.goalsFor : 0,
+              goalsAgainst: typeof team.goalsAgainst === 'number' ? team.goalsAgainst : 0,
+              goalDifference: typeof team.goalDifference === 'number' ? team.goalDifference : 0,
+            })) : [],
+            matches: Array.isArray(group.matches) ? group.matches.map(match => ({
+                ...match,
+                id: match.id || crypto.randomUUID(),
+            })) : [],
+          }));
+          
+          const validatedGroups = parsedGroups.filter(group => group.id && group.name && Array.isArray(group.teams) && Array.isArray(group.matches));
+          if (validatedGroups.length === parsedGroups.length) {
+             setGroups(validatedGroups.map(group => ({
+                ...group,
+                teams: calculateTeamStats(group.teams, group.matches) // Recalculate stats on load
+             })));
+          } else {
+            console.error("Invalid data structure in localStorage after migration. Resetting.");
+            localStorage.removeItem('tournamentGroups');
+          }
         } else {
           console.error("Invalid data structure in localStorage. Resetting.");
           localStorage.removeItem('tournamentGroups');
         }
       } catch (error) {
-        console.error("Failed to parse groups from localStorage:", error);
-        localStorage.removeItem('tournamentGroups'); // Clear corrupted data
+        console.error("Failed to parse or migrate groups from localStorage:", error);
+        localStorage.removeItem('tournamentGroups'); 
       }
     }
   }, []);
 
-  // Effect to save data to localStorage whenever groups change
-  // and to update the tournament scorer
   useEffect(() => {
     localStorage.setItem('tournamentGroups', JSON.stringify(groups));
 
@@ -123,7 +216,19 @@ export function GroupManager() {
           toast({ title: "خطأ", description: `الفريق "${teamName}" موجود بالفعل في هذه المجموعة.`, variant: "destructive" });
           return group;
         }
-        const newTeam: Team = { id: crypto.randomUUID(), name: teamName, players: [], points: 0, goalsFor: 0, goalsAgainst: 0, goalDifference: 0 };
+        const newTeam: Team = { 
+          id: crypto.randomUUID(), 
+          name: teamName, 
+          players: [], 
+          points: 0, 
+          played: 0,
+          won: 0,
+          drawn: 0,
+          lost: 0,
+          goalsFor: 0, 
+          goalsAgainst: 0, 
+          goalDifference: 0 
+        };
         return { ...group, teams: [...group.teams, newTeam] };
       }
       return group;
@@ -137,30 +242,11 @@ export function GroupManager() {
         const teamToDelete = group.teams.find(t => t.id === teamId);
         if (!teamToDelete) return group;
 
-        const updatedTeams = group.teams.filter(t => t.id !== teamId);
+        const remainingTeams = group.teams.filter(t => t.id !== teamId);
         const updatedMatches = group.matches.filter(m => m.teamAId !== teamId && m.teamBId !== teamId);
         
-        const finalTeams = updatedTeams.map(team => {
-          let points = 0;
-          let goalsFor = 0;
-          let goalsAgainst = 0;
-
-          updatedMatches.forEach(match => {
-            if (match.teamAId === team.id && match.teamAResult) {
-              if (match.teamAResult === 'Win') points += 3;
-              if (match.teamAResult === 'Draw') points += 1;
-              goalsFor += match.teamAScoreActual ?? 0;
-              goalsAgainst += match.teamBScoreActual ?? 0;
-            } else if (match.teamBId === team.id && match.teamAResult) {
-              if (match.teamAResult === 'Loss') points += 3; 
-              if (match.teamAResult === 'Draw') points += 1;
-              goalsFor += match.teamBScoreActual ?? 0;
-              goalsAgainst += match.teamAScoreActual ?? 0;
-            }
-          });
-          return { ...team, points, goalsFor, goalsAgainst, goalDifference: goalsFor - goalsAgainst };
-        });
-        return { ...group, teams: finalTeams, matches: updatedMatches };
+        const finalTeamsWithStats = calculateTeamStats(remainingTeams, updatedMatches);
+        return { ...group, teams: finalTeamsWithStats, matches: updatedMatches };
       }
       return group;
     }));
@@ -261,8 +347,9 @@ export function GroupManager() {
             });
           }
         }
+        const teamsWithResetStats = calculateTeamStats(group.teams, newMatches);
         toast({ title: "نجاح", description: "تم إنشاء المباريات بنجاح." });
-        return { ...group, matches: newMatches };
+        return { ...group, matches: newMatches, teams: teamsWithResetStats };
       }
       return group;
     }));
@@ -271,7 +358,7 @@ export function GroupManager() {
   const handleUpdateMatchResult = (
     groupId: string, 
     matchId: string, 
-    teamAResult: MatchResult, 
+    teamAResultInput: MatchResult, 
     teamAScoreActualInput?: number, 
     teamBScoreActualInput?: number
   ) => {
@@ -279,41 +366,25 @@ export function GroupManager() {
         if (group.id === groupId) {
             const updatedMatches = group.matches.map(match => {
                 if (match.id === matchId) {
+                    let result = teamAResultInput;
+                    if (teamAScoreActualInput !== undefined && teamBScoreActualInput !== undefined) {
+                        if (teamAScoreActualInput > teamBScoreActualInput) result = 'Win';
+                        else if (teamAScoreActualInput < teamBScoreActualInput) result = 'Loss';
+                        else result = 'Draw';
+                    }
                     return { 
                         ...match, 
-                        teamAResult, 
-                        teamAScoreActual: teamAScoreActualInput ?? match.teamAScoreActual, 
-                        teamBScoreActual: teamBScoreActualInput ?? match.teamBScoreActual 
+                        teamAResult: result, 
+                        teamAScoreActual: teamAScoreActualInput ?? match.teamAScoreActual ?? 0, 
+                        teamBScoreActual: teamBScoreActualInput ?? match.teamBScoreActual ?? 0
                     };
                 }
                 return match;
             });
 
-            const updatedTeams = group.teams.map(team => {
-                let points = 0;
-                let goalsFor = 0;
-                let goalsAgainst = 0;
-
-                updatedMatches.forEach(m => {
-                    const teamAScores = m.teamAScoreActual ?? 0;
-                    const teamBScores = m.teamBScoreActual ?? 0;
-
-                    if (m.teamAId === team.id && m.teamAResult) {
-                        if (m.teamAResult === 'Win') points += 3;
-                        else if (m.teamAResult === 'Draw') points += 1;
-                        goalsFor += teamAScores;
-                        goalsAgainst += teamBScores;
-                    } else if (m.teamBId === team.id && m.teamAResult) {
-                        if (m.teamAResult === 'Loss') points += 3; 
-                        else if (m.teamAResult === 'Draw') points += 1;
-                        goalsFor += teamBScores;
-                        goalsAgainst += teamAScores;
-                    }
-                });
-                return { ...team, points, goalsFor, goalsAgainst, goalDifference: goalsFor - goalsAgainst };
-            });
+            const updatedTeamsWithStats = calculateTeamStats(group.teams, updatedMatches);
             toast({ title: "نجاح", description: "تم تحديث نتيجة المباراة." });
-            return { ...group, matches: updatedMatches, teams: updatedTeams };
+            return { ...group, matches: updatedMatches, teams: updatedTeamsWithStats };
         }
         return group;
     }));
@@ -321,7 +392,7 @@ export function GroupManager() {
 
   const handleBackupData = () => {
     try {
-      const dataStr = JSON.stringify(groups, null, 2); // Pretty print JSON
+      const dataStr = JSON.stringify(groups, null, 2); 
       const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
   
       const exportFileDefaultName = `tournament_backup_${new Date().toISOString().slice(0,10)}.json`;
@@ -329,9 +400,9 @@ export function GroupManager() {
       const linkElement = document.createElement('a');
       linkElement.setAttribute('href', dataUri);
       linkElement.setAttribute('download', exportFileDefaultName);
-      document.body.appendChild(linkElement); // Required for Firefox
+      document.body.appendChild(linkElement); 
       linkElement.click();
-      document.body.removeChild(linkElement); // Clean up
+      document.body.removeChild(linkElement); 
       toast({ title: "نجاح", description: "تم تصدير البيانات بنجاح." });
     } catch (error) {
       console.error("Failed to backup data:", error);
@@ -343,6 +414,7 @@ export function GroupManager() {
     setGroups([]);
     setNewGroupName('');
     setTournamentScorer(null);
+    localStorage.removeItem('tournamentGroups');
     toast({ title: "نجاح", description: "تمت إعادة تعيين جميع بيانات البطولة.", variant: "default" });
   };
 
@@ -359,7 +431,7 @@ export function GroupManager() {
 
     if (file.type !== "application/json") {
       toast({ title: "خطأ", description: "الرجاء تحديد ملف JSON صالح.", variant: "destructive" });
-      if (event.target) event.target.value = ''; // Reset file input
+      if (event.target) event.target.value = ''; 
       return;
     }
 
@@ -368,35 +440,66 @@ export function GroupManager() {
       try {
         const text = e.target?.result;
         if (typeof text === 'string') {
-          const importedGroups = JSON.parse(text) as Group[];
-          // Basic validation for the imported structure
-          if (Array.isArray(importedGroups) && 
-              importedGroups.every(group => 
-                typeof group.id === 'string' && 
-                typeof group.name === 'string' && 
-                Array.isArray(group.teams) && 
-                Array.isArray(group.matches) &&
-                group.teams.every(team => 
-                    typeof team.id === 'string' &&
-                    typeof team.name === 'string' &&
-                    Array.isArray(team.players) &&
-                    typeof team.points === 'number' &&
-                    team.players.every(player => 
-                        typeof player.id === 'string' &&
-                        typeof player.name === 'string' &&
-                        typeof player.goals === 'number' &&
-                        playerPositions.includes(player.position)
-                    )
-                ) &&
-                group.matches.every(match =>
-                    typeof match.id === 'string' &&
-                    typeof match.teamAId === 'string' &&
-                    typeof match.teamBId === 'string' 
-                )
-              )
-            ) {
-            setGroups(importedGroups);
-            toast({ title: "نجاح", description: "تم استيراد البيانات بنجاح." });
+          let importedGroups = JSON.parse(text) as Group[];
+          if (Array.isArray(importedGroups)) {
+             importedGroups = importedGroups.map(group => ({
+                ...group,
+                id: group.id || crypto.randomUUID(),
+                name: group.name || "Unnamed Group",
+                teams: Array.isArray(group.teams) ? group.teams.map(team => ({
+                  ...team,
+                  id: team.id || crypto.randomUUID(),
+                  name: team.name || "Unnamed Team",
+                  players: Array.isArray(team.players) ? team.players.map(player =>({
+                    ...player,
+                    id: player.id || crypto.randomUUID(),
+                    name: player.name || "Unnamed Player",
+                    position: player.position || "Center Forward",
+                    goals: typeof player.goals === 'number' ? player.goals : 0,
+                  })) : [],
+                  points: typeof team.points === 'number' ? team.points : 0,
+                  played: typeof team.played === 'number' ? team.played : 0,
+                  won: typeof team.won === 'number' ? team.won : 0,
+                  drawn: typeof team.drawn === 'number' ? team.drawn : 0,
+                  lost: typeof team.lost === 'number' ? team.lost : 0,
+                  goalsFor: typeof team.goalsFor === 'number' ? team.goalsFor : 0,
+                  goalsAgainst: typeof team.goalsAgainst === 'number' ? team.goalsAgainst : 0,
+                  goalDifference: typeof team.goalDifference === 'number' ? team.goalDifference : 0,
+                })) : [],
+                matches: Array.isArray(group.matches) ? group.matches.map(match => ({
+                    ...match,
+                    id: match.id || crypto.randomUUID(),
+                })) : [],
+            }));
+            
+            const validatedGroups = importedGroups.filter(group => 
+              group.id && group.name && Array.isArray(group.teams) && Array.isArray(group.matches) &&
+              group.teams.every(team => 
+                  team.id && team.name && Array.isArray(team.players) &&
+                  typeof team.points === 'number' &&
+                  typeof team.played === 'number' &&
+                  typeof team.won === 'number' &&
+                  typeof team.drawn === 'number' &&
+                  typeof team.lost === 'number' &&
+                  typeof team.goalsFor === 'number' &&
+                  typeof team.goalsAgainst === 'number' &&
+                  typeof team.goalDifference === 'number' &&
+                  team.players.every(player => 
+                      player.id && player.name && typeof player.goals === 'number' && playerPositions.includes(player.position)
+                  )
+              ) &&
+              group.matches.every(match => match.id && match.teamAId && match.teamBId)
+            );
+
+            if (validatedGroups.length === importedGroups.length) {
+                setGroups(validatedGroups.map(group => ({
+                    ...group,
+                    teams: calculateTeamStats(group.teams, group.matches)
+                })));
+                toast({ title: "نجاح", description: "تم استيراد البيانات بنجاح." });
+            } else {
+                throw new Error("ملف JSON ببنية بيانات غير صالحة بعد المعالجة.");
+            }
           } else {
             throw new Error("ملف JSON ببنية بيانات غير صالحة.");
           }
@@ -407,12 +510,12 @@ export function GroupManager() {
         console.error("Failed to import data:", error);
         toast({ title: "خطأ", description: `فشل استيراد البيانات. ${error.message || "تأكد من أن الملف بالتنسيق الصحيح."}`, variant: "destructive" });
       } finally {
-          if(event.target) event.target.value = ''; // Reset file input to allow re-upload of same file
+          if(event.target) event.target.value = ''; 
       }
     };
     reader.onerror = () => {
       toast({ title: "خطأ", description: "فشل قراءة الملف.", variant: "destructive" });
-      if(event.target) event.target.value = ''; // Reset file input
+      if(event.target) event.target.value = ''; 
     };
     reader.readAsText(file);
   };
@@ -425,7 +528,6 @@ export function GroupManager() {
 
   return (
     <div className="space-y-8">
-      {/* Tournament Scorer Card */}
       <Card className="shadow-lg border-primary border-2">
         <CardHeader>
           <CardTitle className="text-2xl font-headline text-primary flex items-center gap-2">
@@ -448,7 +550,6 @@ export function GroupManager() {
         </CardContent>
       </Card>
 
-      {/* Data Management Card */}
       <Card className="shadow-lg border-primary border-2 no-print">
         <CardHeader>
           <CardTitle className="text-2xl font-headline text-primary flex items-center gap-2">
@@ -498,7 +599,6 @@ export function GroupManager() {
       </Card>
 
 
-      {/* Create New Group Card */}
       <Card className="shadow-lg border-primary border-2 no-print">
         <CardHeader>
           <CardTitle className="text-2xl font-headline text-primary flex items-center gap-2">
@@ -533,7 +633,7 @@ export function GroupManager() {
         </Card>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-1 lg:grid-cols-2 gap-6">
         {groups.map(group => (
           <GroupCard
             key={group.id}
@@ -574,7 +674,6 @@ function GroupCard({ group, onAddTeam, onDeleteTeam, onAddPlayer, onDeletePlayer
   const [currentTeamAScore, setCurrentTeamAScore] = useState<number>(0);
   const [currentTeamBScore, setCurrentTeamBScore] = useState<number>(0);
 
-
   const { toast } = useToast();
 
   const handleAddTeamSubmit = () => {
@@ -596,9 +695,12 @@ function GroupCard({ group, onAddTeam, onDeleteTeam, onAddPlayer, onDeletePlayer
         return b.points - a.points;
       }
       if (b.goalDifference !== a.goalDifference) {
-        return (b.goalDifference ?? 0) - (a.goalDifference ?? 0);
+        return b.goalDifference - a.goalDifference;
       }
-      return (b.goalsFor ?? 0) - (a.goalsFor ?? 0);
+      if (b.goalsFor !== a.goalsFor) {
+        return b.goalsFor - a.goalsFor;
+      }
+      return a.name.localeCompare(b.name); // Alphabetical for tie-breaking
     });
   }, [group.teams]);
 
@@ -630,23 +732,19 @@ function GroupCard({ group, onAddTeam, onDeleteTeam, onAddPlayer, onDeletePlayer
     setCurrentTeamBScore(match.teamBScoreActual ?? 0);
   };
 
-  const handleMatchScoreSave = (matchId: string, teamAResult: MatchResult | undefined) => {
-    if(teamAResult === undefined) {
-        const match = group.matches.find(m => m.id === matchId);
-        if (!match) return;
+  const handleMatchScoreSave = (matchId: string) => {
+    const match = group.matches.find(m => m.id === matchId);
+    if (!match) return;
 
-        let newTeamAResult: MatchResult;
-        if (currentTeamAScore > currentTeamBScore) {
-            newTeamAResult = "Win";
-        } else if (currentTeamAScore < currentTeamBScore) {
-            newTeamAResult = "Loss";
-        } else {
-            newTeamAResult = "Draw";
-        }
-        onUpdateMatchResult(group.id, matchId, newTeamAResult, currentTeamAScore, currentTeamBScore);
+    let newTeamAResult: MatchResult;
+    if (currentTeamAScore > currentTeamBScore) {
+        newTeamAResult = "Win";
+    } else if (currentTeamAScore < currentTeamBScore) {
+        newTeamAResult = "Loss";
     } else {
-        onUpdateMatchResult(group.id, matchId, teamAResult, currentTeamAScore, currentTeamBScore);
+        newTeamAResult = "Draw";
     }
+    onUpdateMatchResult(group.id, matchId, newTeamAResult, currentTeamAScore, currentTeamBScore);
     setEditingMatchId(null);
   };
 
@@ -696,12 +794,12 @@ function GroupCard({ group, onAddTeam, onDeleteTeam, onAddPlayer, onDeletePlayer
         </div>
       </CardHeader>
       <CardContent className="pt-6 space-y-6 flex-grow">
-        <Accordion type="single" collapsible className="w-full">
+        <Accordion type="single" collapsible className="w-full no-print">
           <AccordionItem value="add-team">
             <AccordionTrigger className="text-lg font-semibold text-primary hover:text-primary/80">
-                <UserPlus className="ml-2 h-5 w-5 no-print" /> إضافة فريق جديد
+                <UserPlus className="ml-2 h-5 w-5" /> إضافة فريق جديد
             </AccordionTrigger>
-            <AccordionContent className="pt-2 no-print">
+            <AccordionContent className="pt-2">
               <div className="flex gap-2 items-end p-1">
                 <div className="flex-grow">
                   <Label htmlFor={`team-name-${group.id}`} className="text-muted-foreground">اسم الفريق</Label>
@@ -715,101 +813,134 @@ function GroupCard({ group, onAddTeam, onDeleteTeam, onAddPlayer, onDeletePlayer
         
         {sortedTeams.length > 0 && (
           <div>
-            <h3 className="text-xl font-semibold mb-3 text-primary flex items-center gap-2"><Shield className="w-6 h-6" /> الفرق ({sortedTeams.length})</h3>
-            <div className="space-y-4">
-              {sortedTeams.map((team, index) => (
-                <Card key={team.id} className="bg-background/50 p-4 rounded-lg shadow">
-                  <div className="flex justify-between items-center mb-3">
-                    <h4 className="text-lg font-semibold text-foreground flex items-center">
-                      <span className="text-accent font-bold text-xl mr-2">{index + 1}.</span>
-                      {team.name} 
-                      <span className="text-sm text-muted-foreground mx-1">-</span> 
-                      <span className="text-primary font-bold">{team.points} نقاط</span>
-                      <span className="text-xs text-muted-foreground ml-2">
-                        (له: {team.goalsFor ?? 0}, عليه: {team.goalsAgainst ?? 0}, الفرق: {team.goalDifference ?? 0})
-                      </span>
-                    </h4>
-                     <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                            <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive/80 no-print">
-                                <Trash2 className="w-4 h-4" />
-                            </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent dir="rtl">
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>هل أنت متأكد من حذف الفريق {team.name}؟</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              سيؤدي هذا الإجراء إلى حذف الفريق وجميع لاعبيه والمباريات المرتبطة به بشكل دائم. لا يمكن التراجع عن هذا الإجراء.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>إلغاء</AlertDialogCancel>
-                            <AlertDialogAction onClick={() => onDeleteTeam(group.id, team.id)}>
-                              نعم، قم بالحذف
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
-                  </div>
-                  
-                  <Accordion type="single" collapsible className="w-full">
-                    <AccordionItem value={`players-${team.id}`}>
-                      <AccordionTrigger className="text-primary hover:text-primary/80">
-                        <Users className="ml-2 h-5 w-5 no-print" /> اللاعبون ({team.players.length})
-                      </AccordionTrigger>
-                      <AccordionContent className="pt-2 space-y-3">
-                        {team.players.length > 0 ? team.players.map(player => (
-                          <div key={player.id} className="flex items-center gap-2 p-2 border rounded-md bg-muted/20">
-                            <span className="flex-grow font-medium text-sm">{player.name}</span>
-                            
-                            <Select 
-                              value={player.position}
-                              onValueChange={(newPos) => onUpdatePlayer(group.id, team.id, player.id, newPos as PlayerPosition, undefined)}
-                              className="w-[140px] text-xs h-8 no-print"
-                            >
-                              <SelectTrigger><SelectValue /></SelectTrigger>
-                              <SelectContent>
-                                {playerPositions.map(pos => <SelectItem key={pos} value={pos} className="text-xs">{playerPositionTranslations[pos]}</SelectItem>)}
-                              </SelectContent>
-                            </Select>
-                            <span className="print-only-inline text-xs w-[140px]">{playerPositionTranslations[player.position]}</span>
-
-                            <Select
-                              value={String(player.goals)}
-                              onValueChange={(newGoals) => onUpdatePlayer(group.id, team.id, player.id, undefined, parseInt(newGoals))}
-                              className="w-[70px] text-xs h-8 no-print"
-                            >
-                              <SelectTrigger><SelectValue /></SelectTrigger>
-                              <SelectContent>
-                                {goalOptions.map(g => <SelectItem key={g} value={String(g)} className="text-xs">{g}</SelectItem>)}
-                              </SelectContent>
-                            </Select>
-                            <span className="print-only-inline text-xs w-[70px]">{player.goals} أهداف</span>
-                            
-                            <Button variant="ghost" size="icon" onClick={() => onDeletePlayer(group.id, team.id, player.id)} className="text-destructive hover:text-destructive/80 w-8 h-8 no-print">
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </Button>
-                          </div>
-                        )) : <p className="text-xs text-muted-foreground">لا يوجد لاعبون في هذا الفريق.</p>}
-                        <div className="flex gap-2 items-end pt-2 border-t mt-3 no-print">
-                          <Input value={newPlayerName} onChange={e => setNewPlayerName(e.target.value)} placeholder="اسم اللاعب" className="flex-grow text-sm h-9" />
-                          <Select value={newPlayerPosition} onValueChange={(pos) => setNewPlayerPosition(pos as PlayerPosition)}>
-                            <SelectTrigger className="w-[150px] text-xs h-9"><SelectValue /></SelectTrigger>
-                            <SelectContent>
-                              {playerPositions.map(pos => <SelectItem key={pos} value={pos} className="text-xs">{playerPositionTranslations[pos]}</SelectItem>)}
-                            </SelectContent>
-                          </Select>
-                          <Button onClick={() => handleAddPlayerSubmit(team.id)} size="sm" className="bg-primary hover:bg-primary/90 h-9"><PlusCircle className="ml-1 h-4 w-4" />إضافة لاعب</Button>
-                        </div>
-                      </AccordionContent>
-                    </AccordionItem>
-                  </Accordion>
-                </Card>
-              ))}
+            <h3 className="text-xl font-semibold mt-6 mb-3 text-primary flex items-center gap-2">
+              <ListOrdered className="w-6 h-6" /> ترتيب المجموعة
+            </h3>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-[30px] text-center">#</TableHead>
+                    <TableHead className="text-right min-w-[120px]">الفريق</TableHead>
+                    <TableHead className="text-center">ن</TableHead>
+                    <TableHead className="text-center">ل</TableHead>
+                    <TableHead className="text-center">ف</TableHead>
+                    <TableHead className="text-center">ت</TableHead>
+                    <TableHead className="text-center">خ</TableHead>
+                    <TableHead className="text-center">له</TableHead>
+                    <TableHead className="text-center">عليه</TableHead>
+                    <TableHead className="text-center">ف.أ</TableHead>
+                    <TableHead className="text-center no-print w-[80px]">إجراء</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {sortedTeams.map((team, index) => (
+                    <TableRow key={team.id}>
+                      <TableCell className="text-center font-medium">{index + 1}</TableCell>
+                      <TableCell className="font-medium text-right">{team.name}</TableCell>
+                      <TableCell className="text-center font-bold">{team.points}</TableCell>
+                      <TableCell className="text-center">{team.played}</TableCell>
+                      <TableCell className="text-center">{team.won}</TableCell>
+                      <TableCell className="text-center">{team.drawn}</TableCell>
+                      <TableCell className="text-center">{team.lost}</TableCell>
+                      <TableCell className="text-center">{team.goalsFor}</TableCell>
+                      <TableCell className="text-center">{team.goalsAgainst}</TableCell>
+                      <TableCell className="text-center">{team.goalDifference > 0 ? `+${team.goalDifference}` : team.goalDifference}</TableCell>
+                      <TableCell className="text-center no-print">
+                         <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                                <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive/80 w-8 h-8">
+                                    <Trash2 className="w-4 h-4" />
+                                </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent dir="rtl">
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>هل أنت متأكد من حذف الفريق {team.name}؟</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  سيؤدي هذا الإجراء إلى حذف الفريق وجميع لاعبيه والمباريات المرتبطة به بشكل دائم. لا يمكن التراجع عن هذا الإجراء.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>إلغاء</AlertDialogCancel>
+                                <AlertDialogAction onClick={() => onDeleteTeam(group.id, team.id)}>
+                                  نعم، قم بالحذف
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
             </div>
           </div>
         )}
-        {group.teams.length === 0 && <p className="text-muted-foreground text-sm">لم تتم إضافة أي فرق إلى هذه المجموعة بعد.</p>}
+        {group.teams.length === 0 && <p className="text-muted-foreground text-sm mt-4">لم تتم إضافة أي فرق إلى هذه المجموعة بعد.</p>}
+
+        {/* Player Management for each team */}
+        {sortedTeams.length > 0 && (
+            <div className="mt-6">
+            <h3 className="text-xl font-semibold mb-3 text-primary flex items-center gap-2 no-print">
+                <Users className="w-6 h-6" /> إدارة لاعبي الفرق
+            </h3>
+            <Accordion type="single" collapsible className="w-full">
+                {sortedTeams.map((team) => (
+                    <AccordionItem value={`players-${team.id}-${group.id}`} key={`players-${team.id}-${group.id}`} className="mb-2 border rounded-lg shadow-sm bg-background/30">
+                         <AccordionTrigger className="text-primary hover:text-primary/80 text-base font-semibold px-4 py-3 no-print">
+                            <div className="flex items-center gap-2">
+                                {team.name} - اللاعبون ({team.players.length})
+                            </div>
+                        </AccordionTrigger>
+                        <AccordionContent className="pt-2 px-4 pb-4 space-y-3">
+                            {team.players.length > 0 ? team.players.map(player => (
+                            <div key={player.id} className="flex items-center gap-2 p-2 border rounded-md bg-muted/20">
+                                <span className="flex-grow font-medium text-sm">{player.name}</span>
+                                
+                                <Select 
+                                value={player.position}
+                                onValueChange={(newPos) => onUpdatePlayer(group.id, team.id, player.id, newPos as PlayerPosition, undefined)}
+                                >
+                                <SelectTrigger className="w-[140px] text-xs h-8 no-print"><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                    {playerPositions.map(pos => <SelectItem key={pos} value={pos} className="text-xs">{playerPositionTranslations[pos]}</SelectItem>)}
+                                </SelectContent>
+                                </Select>
+                                <span className="print-only-inline text-xs w-[140px]">{playerPositionTranslations[player.position]}</span>
+
+                                <Select
+                                value={String(player.goals)}
+                                onValueChange={(newGoals) => onUpdatePlayer(group.id, team.id, player.id, undefined, parseInt(newGoals))}
+                                >
+                                <SelectTrigger className="w-[70px] text-xs h-8 no-print"><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                    {goalOptions.map(g => <SelectItem key={g} value={String(g)} className="text-xs">{g}</SelectItem>)}
+                                </SelectContent>
+                                </Select>
+                                <span className="print-only-inline text-xs w-[70px]">{player.goals} أهداف</span>
+                                
+                                <Button variant="ghost" size="icon" onClick={() => onDeletePlayer(group.id, team.id, player.id)} className="text-destructive hover:text-destructive/80 w-8 h-8 no-print">
+                                <Trash2 className="w-3.5 h-3.5" />
+                                </Button>
+                            </div>
+                            )) : <p className="text-xs text-muted-foreground">لا يوجد لاعبون في هذا الفريق.</p>}
+                            <div className="flex gap-2 items-end pt-2 border-t mt-3 no-print">
+                            <Input value={newPlayerName} onChange={e => setNewPlayerName(e.target.value)} placeholder="اسم اللاعب" className="flex-grow text-sm h-9" />
+                            <Select value={newPlayerPosition} onValueChange={(pos) => setNewPlayerPosition(pos as PlayerPosition)}>
+                                <SelectTrigger className="w-[150px] text-xs h-9"><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                {playerPositions.map(pos => <SelectItem key={pos} value={pos} className="text-xs">{playerPositionTranslations[pos]}</SelectItem>)}
+                                </SelectContent>
+                            </Select>
+                            <Button onClick={() => handleAddPlayerSubmit(team.id)} size="sm" className="bg-primary hover:bg-primary/90 h-9"><PlusCircle className="ml-1 h-4 w-4" />إضافة لاعب</Button>
+                            </div>
+                        </AccordionContent>
+                    </AccordionItem>
+                ))}
+            </Accordion>
+            </div>
+        )}
+
 
         <Separator className="my-6" />
 
@@ -843,7 +974,7 @@ function GroupCard({ group, onAddTeam, onDeleteTeam, onAddPlayer, onDeletePlayer
                                 id={`scoreA-${match.id}`} 
                                 type="number" 
                                 value={currentTeamAScore} 
-                                onChange={(e) => setCurrentTeamAScore(parseInt(e.target.value) < 0 ? 0 : parseInt(e.target.value))} 
+                                onChange={(e) => setCurrentTeamAScore(Math.max(0, parseInt(e.target.value)))} 
                                 className="w-16 h-8 text-xs" 
                                 min="0"
                             />
@@ -852,12 +983,12 @@ function GroupCard({ group, onAddTeam, onDeleteTeam, onAddPlayer, onDeletePlayer
                                 id={`scoreB-${match.id}`} 
                                 type="number" 
                                 value={currentTeamBScore} 
-                                onChange={(e) => setCurrentTeamBScore(parseInt(e.target.value) < 0 ? 0 : parseInt(e.target.value))} 
+                                onChange={(e) => setCurrentTeamBScore(Math.max(0, parseInt(e.target.value)))} 
                                 className="w-16 h-8 text-xs" 
                                 min="0"
                             />
                         </div>
-                        <Button onClick={() => handleMatchScoreSave(match.id, undefined)} size="sm" className="w-full">
+                        <Button onClick={() => handleMatchScoreSave(match.id)} size="sm" className="w-full">
                             <Save className="ml-2 h-4 w-4" /> حفظ النتيجة
                         </Button>
                     </div>
@@ -866,14 +997,15 @@ function GroupCard({ group, onAddTeam, onDeleteTeam, onAddPlayer, onDeletePlayer
                       <div className="text-xs text-muted-foreground">
                         النتيجة: {getTeamName(match.teamAId)} {match.teamAScoreActual ?? 0} - {match.teamBScoreActual ?? 0} {getTeamName(match.teamBId)}
                       </div>
-                      {match.teamAResult && (
+                      {match.teamAResult ? (
                         <div className="mt-1 text-xs text-muted-foreground">
                           <p>({matchResultTranslations[match.teamAResult]} لـ {getTeamName(match.teamAId)})</p>
                           <p>نقاط {getTeamName(match.teamAId)}: {match.teamAResult === 'Win' ? 3 : match.teamAResult === 'Draw' ? 1 : 0}</p>
                           <p>نقاط {getTeamName(match.teamBId)}: {match.teamAResult === 'Loss' ? 3 : match.teamAResult === 'Draw' ? 1 : 0}</p>
                         </div>
+                      ): (
+                        <p className="text-xs text-muted-foreground mt-1">لم يتم تسجيل نتيجة المباراة بعد.</p>
                       )}
-                      {!match.teamAResult && <p className="text-xs text-muted-foreground mt-1">لم يتم تسجيل نتيجة المباراة بعد.</p>}
                     </div>
                   )}
                 </Card>
@@ -892,3 +1024,4 @@ function GroupCard({ group, onAddTeam, onDeleteTeam, onAddPlayer, onDeletePlayer
     </Card>
   );
 }
+
