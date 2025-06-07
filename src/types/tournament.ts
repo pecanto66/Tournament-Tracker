@@ -1,3 +1,4 @@
+
 export type PlayerPosition =
   | "Goalkeeper"
   | "Right Back"
@@ -35,8 +36,9 @@ export const matchResultTranslations: Record<MatchResult, string> = {
   "Loss": "خسارة",
 };
 
-// Goals from 0 to 10
-export const goalOptions: number[] = Array.from({ length: 11 }, (_, i) => i);
+// Goals from 0 to 20 for players, and 0-10 for match scores
+export const goalOptions: number[] = Array.from({ length: 21 }, (_, i) => i);
+export const matchScoreOptions: number[] = Array.from({ length: 11 }, (_, i) => i);
 
 
 export interface Player {
@@ -50,7 +52,10 @@ export interface Team {
   id: string;
   name: string;
   players: Player[];
-  points: number; 
+  points: number;
+  goalsFor?: number;
+  goalsAgainst?: number;
+  goalDifference?: number; 
 }
 
 export interface Match {
@@ -58,8 +63,10 @@ export interface Match {
   teamAId: string;
   teamBId: string;
   teamAResult?: MatchResult;
-  teamAScore?: number; 
-  teamBScore?: number; 
+  // teamAScore and teamBScore were for points allocation, not actual goals
+  // Let's add actual scores
+  teamAScoreActual?: number; 
+  teamBScoreActual?: number;
 }
 
 export interface Group {
