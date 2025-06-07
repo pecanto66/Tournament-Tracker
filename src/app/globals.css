@@ -105,3 +105,140 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Print-specific styles */
+.print-only-block, .print-only-inline {
+  display: none;
+}
+
+@media print {
+  body {
+    font-family: Arial, sans-serif; /* Common print-friendly font */
+    font-size: 10pt; /* Adjust as needed */
+    color: #000 !important;
+    background-color: #fff !important;
+    -webkit-print-color-adjust: exact; /* Ensure colors are printed if needed, but use sparingly */
+    print-color-adjust: exact;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+  .print-only-block {
+    display: block !important;
+  }
+  .print-only-inline {
+    display: inline !important;
+  }
+
+  /* Layout adjustments */
+  .container {
+    width: 100% !important;
+    max-width: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  .grid { /* Make main group layout single column */
+    grid-template-columns: repeat(1, minmax(0, 1fr)) !important;
+  }
+  .gap-6 {
+    gap: 0.5rem !important; /* Reduce gap between group cards */
+  }
+  .space-y-8 > *:not(:first-child) { /* Reduce vertical spacing */
+    margin-top: 1rem !important;
+  }
+   main {
+    padding-top: 0 !important; /* Remove padding from main content area for print */
+   }
+
+  /* Card styling for print */
+  .card {
+    border: 1px solid #ccc !important;
+    box-shadow: none !important;
+    background-color: #fff !important;
+    page-break-inside: avoid;
+    margin-bottom: 1rem; /* Add some space between cards on print */
+  }
+  .card-header, .card-content, .card-footer {
+    padding: 0.5rem !important;
+    color: #000 !important;
+  }
+  .card-title, .card-description, h1, h2, h3, h4, p, span, div, label, th, td, li {
+    color: #000 !important;
+    background-color: transparent !important; /* Remove any background colors from text elements */
+  }
+  .text-primary, .text-accent, .text-muted-foreground, .text-destructive {
+    color: #000 !important;
+  }
+  .font-headline { /* Use body font for headlines to save space/ink */
+    font-family: Arial, sans-serif;
+    font-size: 1.5em; /* Adjust title sizes for print */
+  }
+  h1.text-5xl { font-size: 24pt !important; }
+  h1.text-4xl { font-size: 20pt !important; }
+  h3.text-xl  { font-size: 14pt !important; }
+  h4.text-lg   { font-size: 12pt !important; }
+
+
+  /* Accordion handling */
+  [data-radix-accordion-content][data-state="closed"],
+  [data-radix-accordion-content][data-state="open"] {
+    display: block !important;
+    height: auto !important;
+    overflow: visible !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    animation: none !important;
+    padding-top: 0.25rem !important;
+    padding-bottom: 0.25rem !important;
+  }
+  [data-radix-accordion-trigger] { /* Keep trigger text visible */
+    padding-top: 0.25rem !important;
+    padding-bottom: 0.25rem !important;
+    text-decoration: none !important; /* Remove underline from hover */
+    font-weight: bold;
+  }
+  [data-radix-accordion-trigger] > svg.lucide-chevron-down { /* Hide chevron icon */
+    display: none !important;
+  }
+  [data-radix-accordion-item] {
+     border-bottom: 1px solid #eee !important;
+     page-break-inside: avoid;
+  }
+   [data-radix-accordion-item]:last-child {
+     border-bottom: none !important;
+   }
+
+  /* Table specific styling */
+  table { /* If tables are used for standings */
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 0.5rem;
+    margin-bottom: 0.5rem;
+  }
+  th, td {
+    border: 1px solid #bbb;
+    padding: 4px 6px;
+    text-align: right; /* For RTL */
+  }
+  thead th {
+    background-color: #e0e0e0 !important; /* Lighter grey for header */
+    font-weight: bold;
+  }
+
+  /* Separator */
+  hr, .separator {
+    border-color: #bbb !important;
+    height: 1px !important;
+    background-color: #bbb !important;
+    margin-top: 0.5rem !important;
+    margin-bottom: 0.5rem !important;
+  }
+
+  /* Ensure links are identifiable but not overly styled */
+  a {
+    color: #000 !important;
+    text-decoration: none; /* Or underline if preferred for print */
+  }
+}

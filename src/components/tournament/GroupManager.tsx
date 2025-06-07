@@ -449,7 +449,7 @@ export function GroupManager() {
       </Card>
 
       {/* Data Management Card */}
-      <Card className="shadow-lg border-primary border-2">
+      <Card className="shadow-lg border-primary border-2 no-print">
         <CardHeader>
           <CardTitle className="text-2xl font-headline text-primary flex items-center gap-2">
              إدارة بيانات البطولة
@@ -499,7 +499,7 @@ export function GroupManager() {
 
 
       {/* Create New Group Card */}
-      <Card className="shadow-lg border-primary border-2">
+      <Card className="shadow-lg border-primary border-2 no-print">
         <CardHeader>
           <CardTitle className="text-2xl font-headline text-primary flex items-center gap-2">
             <PlusCircle className="w-7 h-7" /> إنشاء مجموعة جديدة
@@ -674,7 +674,7 @@ function GroupCard({ group, onAddTeam, onDeleteTeam, onAddPlayer, onDeletePlayer
           </div>
           <AlertDialog>
             <AlertDialogTrigger asChild>
-                <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive/80">
+                <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive/80 no-print">
                     <Trash2 className="w-5 h-5" />
                 </Button>
             </AlertDialogTrigger>
@@ -699,9 +699,9 @@ function GroupCard({ group, onAddTeam, onDeleteTeam, onAddPlayer, onDeletePlayer
         <Accordion type="single" collapsible className="w-full">
           <AccordionItem value="add-team">
             <AccordionTrigger className="text-lg font-semibold text-primary hover:text-primary/80">
-                <UserPlus className="ml-2 h-5 w-5" /> إضافة فريق جديد
+                <UserPlus className="ml-2 h-5 w-5 no-print" /> إضافة فريق جديد
             </AccordionTrigger>
-            <AccordionContent className="pt-2">
+            <AccordionContent className="pt-2 no-print">
               <div className="flex gap-2 items-end p-1">
                 <div className="flex-grow">
                   <Label htmlFor={`team-name-${group.id}`} className="text-muted-foreground">اسم الفريق</Label>
@@ -731,7 +731,7 @@ function GroupCard({ group, onAddTeam, onDeleteTeam, onAddPlayer, onDeletePlayer
                     </h4>
                      <AlertDialog>
                         <AlertDialogTrigger asChild>
-                            <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive/80">
+                            <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive/80 no-print">
                                 <Trash2 className="w-4 h-4" />
                             </Button>
                         </AlertDialogTrigger>
@@ -755,37 +755,43 @@ function GroupCard({ group, onAddTeam, onDeleteTeam, onAddPlayer, onDeletePlayer
                   <Accordion type="single" collapsible className="w-full">
                     <AccordionItem value={`players-${team.id}`}>
                       <AccordionTrigger className="text-primary hover:text-primary/80">
-                        <Users className="ml-2 h-5 w-5" /> اللاعبون ({team.players.length})
+                        <Users className="ml-2 h-5 w-5 no-print" /> اللاعبون ({team.players.length})
                       </AccordionTrigger>
                       <AccordionContent className="pt-2 space-y-3">
                         {team.players.length > 0 ? team.players.map(player => (
                           <div key={player.id} className="flex items-center gap-2 p-2 border rounded-md bg-muted/20">
                             <span className="flex-grow font-medium text-sm">{player.name}</span>
+                            
                             <Select 
                               value={player.position}
                               onValueChange={(newPos) => onUpdatePlayer(group.id, team.id, player.id, newPos as PlayerPosition, undefined)}
+                              className="w-[140px] text-xs h-8 no-print"
                             >
-                              <SelectTrigger className="w-[140px] text-xs h-8"><SelectValue /></SelectTrigger>
+                              <SelectTrigger><SelectValue /></SelectTrigger>
                               <SelectContent>
                                 {playerPositions.map(pos => <SelectItem key={pos} value={pos} className="text-xs">{playerPositionTranslations[pos]}</SelectItem>)}
                               </SelectContent>
                             </Select>
-                            <Label htmlFor={`goals-${player.id}`} className="text-xs sr-only">أهداف</Label>
+                            <span className="print-only-inline text-xs w-[140px]">{playerPositionTranslations[player.position]}</span>
+
                             <Select
                               value={String(player.goals)}
                               onValueChange={(newGoals) => onUpdatePlayer(group.id, team.id, player.id, undefined, parseInt(newGoals))}
+                              className="w-[70px] text-xs h-8 no-print"
                             >
-                              <SelectTrigger className="w-[70px] text-xs h-8"><SelectValue /></SelectTrigger>
+                              <SelectTrigger><SelectValue /></SelectTrigger>
                               <SelectContent>
                                 {goalOptions.map(g => <SelectItem key={g} value={String(g)} className="text-xs">{g}</SelectItem>)}
                               </SelectContent>
                             </Select>
-                            <Button variant="ghost" size="icon" onClick={() => onDeletePlayer(group.id, team.id, player.id)} className="text-destructive hover:text-destructive/80 w-8 h-8">
+                            <span className="print-only-inline text-xs w-[70px]">{player.goals} أهداف</span>
+                            
+                            <Button variant="ghost" size="icon" onClick={() => onDeletePlayer(group.id, team.id, player.id)} className="text-destructive hover:text-destructive/80 w-8 h-8 no-print">
                               <Trash2 className="w-3.5 h-3.5" />
                             </Button>
                           </div>
                         )) : <p className="text-xs text-muted-foreground">لا يوجد لاعبون في هذا الفريق.</p>}
-                        <div className="flex gap-2 items-end pt-2 border-t mt-3">
+                        <div className="flex gap-2 items-end pt-2 border-t mt-3 no-print">
                           <Input value={newPlayerName} onChange={e => setNewPlayerName(e.target.value)} placeholder="اسم اللاعب" className="flex-grow text-sm h-9" />
                           <Select value={newPlayerPosition} onValueChange={(pos) => setNewPlayerPosition(pos as PlayerPosition)}>
                             <SelectTrigger className="w-[150px] text-xs h-9"><SelectValue /></SelectTrigger>
@@ -811,7 +817,7 @@ function GroupCard({ group, onAddTeam, onDeleteTeam, onAddPlayer, onDeletePlayer
           <div className="flex justify-between items-center mb-3">
             <h3 className="text-xl font-semibold text-primary flex items-center gap-2"><Swords className="w-6 h-6" /> المباريات</h3>
             {group.teams.length >= 2 && group.matches.length === 0 && (
-              <Button onClick={() => onGenerateMatches(group.id)} size="sm" className="bg-accent hover:bg-accent/90 text-accent-foreground">
+              <Button onClick={() => onGenerateMatches(group.id)} size="sm" className="bg-accent hover:bg-accent/90 text-accent-foreground no-print">
                 <PlusCircle className="ml-2 h-4 w-4" /> إنشاء المباريات
               </Button>
             )}
@@ -824,13 +830,13 @@ function GroupCard({ group, onAddTeam, onDeleteTeam, onAddPlayer, onDeletePlayer
                     <span className="font-medium text-foreground">{getTeamName(match.teamAId)}</span>
                     <span className="text-muted-foreground mx-1">vs</span>
                     <span className="font-medium text-foreground">{getTeamName(match.teamBId)}</span>
-                     <Button variant="ghost" size="icon" onClick={() => editingMatchId === match.id ? setEditingMatchId(null) : handleMatchScoreEdit(match)} className="text-primary hover:text-primary/80 w-7 h-7">
+                     <Button variant="ghost" size="icon" onClick={() => editingMatchId === match.id ? setEditingMatchId(null) : handleMatchScoreEdit(match)} className="text-primary hover:text-primary/80 w-7 h-7 no-print">
                         {editingMatchId === match.id ? <XCircle className="w-4 h-4" /> : <Edit3 className="w-4 h-4" />}
                     </Button>
                   </div>
 
                   {editingMatchId === match.id ? (
-                    <div className="space-y-2">
+                    <div className="space-y-2 no-print">
                         <div className="flex items-center gap-2">
                             <Label htmlFor={`scoreA-${match.id}`} className="text-xs whitespace-nowrap">أهداف {getTeamName(match.teamAId)}:</Label>
                             <Input 
@@ -856,7 +862,7 @@ function GroupCard({ group, onAddTeam, onDeleteTeam, onAddPlayer, onDeletePlayer
                         </Button>
                     </div>
                   ) : (
-                    <>
+                    <div className="match-score-display">
                       <div className="text-xs text-muted-foreground">
                         النتيجة: {getTeamName(match.teamAId)} {match.teamAScoreActual ?? 0} - {match.teamBScoreActual ?? 0} {getTeamName(match.teamBId)}
                       </div>
@@ -868,7 +874,7 @@ function GroupCard({ group, onAddTeam, onDeleteTeam, onAddPlayer, onDeletePlayer
                         </div>
                       )}
                       {!match.teamAResult && <p className="text-xs text-muted-foreground mt-1">لم يتم تسجيل نتيجة المباراة بعد.</p>}
-                    </>
+                    </div>
                   )}
                 </Card>
               ))}
@@ -886,4 +892,3 @@ function GroupCard({ group, onAddTeam, onDeleteTeam, onAddPlayer, onDeletePlayer
     </Card>
   );
 }
-
