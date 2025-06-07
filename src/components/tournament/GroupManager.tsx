@@ -10,8 +10,19 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
-import { PlusCircle, Users, Shield, UserPlus, Trash2, Edit3, Save, XCircle, Swords, Target, Trophy as TrophyIcon } from 'lucide-react';
+import { PlusCircle, Users, Shield, UserPlus, Trash2, Edit3, Save, XCircle, Swords, Target, Trophy as TrophyIcon, Download, RefreshCcw } from 'lucide-react';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 
 // Define a type for scorers that includes team and group context
@@ -47,11 +58,7 @@ export function GroupManager() {
             maxGoals = player.goals;
             topScorer = { ...player, teamName: team.name, groupName: group.name };
           } else if (player.goals === maxGoals && player.goals > 0) {
-            // Handle ties, e.g. by concatenating names or choosing the first one
-            // For simplicity, we're keeping the first one found or the current topScorer
             if (topScorer && typeof topScorer.name === 'string' && typeof player.name === 'string') {
-                 // Could be more sophisticated here, e.g. player who scored first, etc.
-                 // For now, just append if different name.
                  if (!topScorer.name.includes(player.name)) {
                     topScorer.name += ` & ${player.name}`;
                  }
@@ -62,7 +69,7 @@ export function GroupManager() {
         });
       });
     });
-    if (maxGoals === 0 && topScorer) { // If max goals is 0, no real scorer
+    if (maxGoals === 0 && topScorer) { 
         setTournamentScorer(null);
     } else {
         setTournamentScorer(topScorer);
@@ -103,7 +110,7 @@ export function GroupManager() {
           toast({ title: "خطأ", description: `الفريق "${teamName}" موجود بالفعل في هذه المجموعة.`, variant: "destructive" });
           return group;
         }
-        const newTeam: Team = { id: crypto.randomUUID(), name: teamName, players: [], points: 0, goalsFor: 0, goalsAgainst: 0 };
+        const newTeam: Team = { id: crypto.randomUUID(), name: teamName, players: [], points: 0, goalsFor: 0, goalsAgainst: 0, goalDifference: 0 };
         return { ...group, teams: [...group.teams, newTeam] };
       }
       return group;
@@ -120,7 +127,6 @@ export function GroupManager() {
         const updatedTeams = group.teams.filter(t => t.id !== teamId);
         const updatedMatches = group.matches.filter(m => m.teamAId !== teamId && m.teamBId !== teamId);
         
-        // Recalculate points and goal differences for remaining teams
         const finalTeams = updatedTeams.map(team => {
           let points = 0;
           let goalsFor = 0;
@@ -133,13 +139,13 @@ export function GroupManager() {
               goalsFor += match.teamAScoreActual ?? 0;
               goalsAgainst += match.teamBScoreActual ?? 0;
             } else if (match.teamBId === team.id && match.teamAResult) {
-              if (match.teamAResult === 'Loss') points += 3; // Team B wins if Team A loses
+              if (match.teamAResult === 'Loss') points += 3; 
               if (match.teamAResult === 'Draw') points += 1;
               goalsFor += match.teamBScoreActual ?? 0;
               goalsAgainst += match.teamAScoreActual ?? 0;
             }
           });
-          return { ...team, points, goalsFor, goalsAgainst };
+          return { ...team, points, goalsFor, goalsAgainst, goalDifference: goalsFor - goalsAgainst };
         });
         return { ...group, teams: finalTeams, matches: updatedMatches };
       }
@@ -221,7 +227,6 @@ export function GroupManager() {
       }
       return group;
     }));
-    // No toast here to avoid spamming on every minor update
   };
 
   const handleGenerateMatches = (groupId: string) => {
@@ -271,7 +276,6 @@ export function GroupManager() {
                 return match;
             });
 
-            // Recalculate points and goal differences for all teams in the group
             const updatedTeams = group.teams.map(team => {
                 let points = 0;
                 let goalsFor = 0;
@@ -287,7 +291,7 @@ export function GroupManager() {
                         goalsFor += teamAScores;
                         goalsAgainst += teamBScores;
                     } else if (m.teamBId === team.id && m.teamAResult) {
-                        if (m.teamAResult === 'Loss') points += 3; // Team B wins if Team A loses
+                        if (m.teamAResult === 'Loss') points += 3; 
                         else if (m.teamAResult === 'Draw') points += 1;
                         goalsFor += teamBScores;
                         goalsAgainst += teamAScores;
@@ -301,6 +305,35 @@ export function GroupManager() {
         return group;
     }));
   };
+
+  const handleBackupData = () => {
+    try {
+      const dataStr = JSON.stringify(groups, null, 2); // Pretty print JSON
+      const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+  
+      const exportFileDefaultName = `tournament_backup_${new Date().toISOString().slice(0,10)}.json`;
+  
+      const linkElement = document.createElement('a');
+      linkElement.setAttribute('href', dataUri);
+      linkElement.setAttribute('download', exportFileDefaultName);
+      document.body.appendChild(linkElement); // Required for Firefox
+      linkElement.click();
+      document.body.removeChild(linkElement); // Clean up
+      toast({ title: "نجاح", description: "تم تصدير البيانات بنجاح." });
+    } catch (error) {
+      console.error("Failed to backup data:", error);
+      toast({ title: "خطأ", description: "فشل تصدير البيانات.", variant: "destructive" });
+    }
+  };
+
+  const handleResetData = () => {
+    setGroups([]);
+    setNewGroupName('');
+    setTournamentScorer(null);
+    // The useEffect hook watching 'groups' will clear localStorage.
+    toast({ title: "نجاح", description: "تمت إعادة تعيين جميع بيانات البطولة.", variant: "default" });
+  };
+
 
   return (
     <div className="space-y-8">
@@ -326,6 +359,42 @@ export function GroupManager() {
           )}
         </CardContent>
       </Card>
+
+      {/* Data Management Card */}
+      <Card className="shadow-lg border-primary border-2">
+        <CardHeader>
+          <CardTitle className="text-2xl font-headline text-primary flex items-center gap-2">
+             إدارة بيانات البطولة
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="flex flex-col sm:flex-row gap-4">
+          <Button onClick={handleBackupData} variant="outline" className="flex-1">
+            <Download className="ml-2 h-5 w-5" /> تصدير كل البيانات
+          </Button>
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="destructive" className="flex-1">
+                <RefreshCcw className="ml-2 h-5 w-5" /> إعادة تعيين كل البيانات
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent dir="rtl">
+              <AlertDialogHeader>
+                <AlertDialogTitle>هل أنت متأكد تمامًا؟</AlertDialogTitle>
+                <AlertDialogDescription>
+                  سيؤدي هذا الإجراء إلى حذف جميع بيانات البطولة بشكل دائم (المجموعات، الفرق، اللاعبون، والمباريات). لا يمكن التراجع عن هذا الإجراء.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>إلغاء</AlertDialogCancel>
+                <AlertDialogAction onClick={handleResetData}>
+                  نعم، قم بإعادة التعيين
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </CardContent>
+      </Card>
+
 
       {/* Create New Group Card */}
       <Card className="shadow-lg border-primary border-2">
@@ -414,7 +483,7 @@ function GroupCard({ group, onAddTeam, onDeleteTeam, onAddPlayer, onDeletePlayer
   const handleAddPlayerSubmit = (teamId: string) => {
     onAddPlayer(group.id, teamId, newPlayerName, newPlayerPosition);
     setNewPlayerName('');
-    setNewPlayerPosition("Center Forward"); // Reset position for next player
+    setNewPlayerPosition("Center Forward"); 
   };
 
   const getTeamName = (teamId: string) => group.teams.find(t => t.id === teamId)?.name || 'فريق غير معروف';
@@ -424,10 +493,8 @@ function GroupCard({ group, onAddTeam, onDeleteTeam, onAddPlayer, onDeletePlayer
       if (b.points !== a.points) {
         return b.points - a.points;
       }
-      const goalDiffA = (a.goalsFor ?? 0) - (a.goalsAgainst ?? 0);
-      const goalDiffB = (b.goalsFor ?? 0) - (b.goalsAgainst ?? 0);
-      if (goalDiffB !== goalDiffA) {
-        return goalDiffB - goalDiffA;
+      if (b.goalDifference !== a.goalDifference) {
+        return (b.goalDifference ?? 0) - (a.goalDifference ?? 0);
       }
       return (b.goalsFor ?? 0) - (a.goalsFor ?? 0);
     });
@@ -463,11 +530,21 @@ function GroupCard({ group, onAddTeam, onDeleteTeam, onAddPlayer, onDeletePlayer
 
   const handleMatchScoreSave = (matchId: string, teamAResult: MatchResult | undefined) => {
     if(teamAResult === undefined) {
-        toast({title: "خطأ", description: "الرجاء تحديد نتيجة المباراة أولاً.", variant: "destructive"});
-        setEditingMatchId(null); // Exit editing mode
-        return;
+        const match = group.matches.find(m => m.id === matchId);
+        if (!match) return;
+
+        let newTeamAResult: MatchResult;
+        if (currentTeamAScore > currentTeamBScore) {
+            newTeamAResult = "Win";
+        } else if (currentTeamAScore < currentTeamBScore) {
+            newTeamAResult = "Loss";
+        } else {
+            newTeamAResult = "Draw";
+        }
+        onUpdateMatchResult(group.id, matchId, newTeamAResult, currentTeamAScore, currentTeamBScore);
+    } else {
+        onUpdateMatchResult(group.id, matchId, teamAResult, currentTeamAScore, currentTeamBScore);
     }
-    onUpdateMatchResult(group.id, matchId, teamAResult, currentTeamAScore, currentTeamBScore);
     setEditingMatchId(null);
   };
 
@@ -529,7 +606,7 @@ function GroupCard({ group, onAddTeam, onDeleteTeam, onAddPlayer, onDeletePlayer
                       <span className="text-sm text-muted-foreground mx-1">-</span> 
                       <span className="text-primary font-bold">{team.points} نقاط</span>
                       <span className="text-xs text-muted-foreground ml-2">
-                        (له: {team.goalsFor ?? 0}, عليه: {team.goalsAgainst ?? 0}, الفرق: {(team.goalsFor ?? 0) - (team.goalsAgainst ?? 0)})
+                        (له: {team.goalsFor ?? 0}, عليه: {team.goalsAgainst ?? 0}, الفرق: {team.goalDifference ?? 0})
                       </span>
                     </h4>
                     <Button variant="ghost" size="icon" onClick={() => onDeleteTeam(group.id, team.id)} className="text-destructive hover:text-destructive/80">
@@ -622,7 +699,7 @@ function GroupCard({ group, onAddTeam, onDeleteTeam, onAddPlayer, onDeletePlayer
                                 id={`scoreA-${match.id}`} 
                                 type="number" 
                                 value={currentTeamAScore} 
-                                onChange={(e) => setCurrentTeamAScore(parseInt(e.target.value))} 
+                                onChange={(e) => setCurrentTeamAScore(parseInt(e.target.value) < 0 ? 0 : parseInt(e.target.value))} 
                                 className="w-16 h-8 text-xs" 
                                 min="0"
                             />
@@ -631,22 +708,14 @@ function GroupCard({ group, onAddTeam, onDeleteTeam, onAddPlayer, onDeletePlayer
                                 id={`scoreB-${match.id}`} 
                                 type="number" 
                                 value={currentTeamBScore} 
-                                onChange={(e) => setCurrentTeamBScore(parseInt(e.target.value))} 
+                                onChange={(e) => setCurrentTeamBScore(parseInt(e.target.value) < 0 ? 0 : parseInt(e.target.value))} 
                                 className="w-16 h-8 text-xs" 
                                 min="0"
                             />
                         </div>
-                        <Select
-                            value={match.teamAResult}
-                            onValueChange={(res) => handleMatchScoreSave(match.id, res as MatchResult)}
-                            >
-                            <SelectTrigger className="flex-grow h-9 text-xs">
-                                <SelectValue placeholder="اختر نتيجة الفريق الأول" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {matchResults.map(res => <SelectItem key={res} value={res} className="text-xs">{matchResultTranslations[res]} ({getTeamName(match.teamAId)} {res === "Win" ? "يفوز" : res === "Draw" ? "يتعادل" : "يخسر"})</SelectItem>)}
-                            </SelectContent>
-                        </Select>
+                        <Button onClick={() => handleMatchScoreSave(match.id, undefined)} size="sm" className="w-full">
+                            <Save className="ml-2 h-4 w-4" /> حفظ النتيجة
+                        </Button>
                     </div>
                   ) : (
                     <>
