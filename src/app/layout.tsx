@@ -3,7 +3,7 @@ import type { Metadata } from 'next';
 import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
 import { Navbar } from '@/components/Navbar';
-import { AuthProvider } from '@/contexts/AuthContext';
+// Removed AuthProvider
 
 export const metadata: Metadata = {
   title: 'دورة التحدي',
@@ -24,7 +24,7 @@ export default function RootLayout({
         <link href="https://fonts.googleapis.com/css2?family=PT+Sans:wght@400;700&display=swap" rel="stylesheet" />
       </head>
       <body className="font-body antialiased min-h-screen flex flex-col">
-        <AuthProvider>
+        {/* <AuthProvider> */}
           <header className="no-print">
             <Navbar />
           </header>
@@ -32,7 +32,7 @@ export default function RootLayout({
             {children}
           </main>
           <Toaster />
-        </AuthProvider>
+        {/* </AuthProvider> */}
       </body>
     </html>
   );

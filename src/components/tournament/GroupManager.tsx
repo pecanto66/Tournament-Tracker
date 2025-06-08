@@ -10,7 +10,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
-import { PlusCircle, Users, UserPlus, Trash2, Edit3, Save, XCircle, Swords, Target, Trophy as TrophyIcon, Download, RefreshCcw, Upload, Printer, ListOrdered, CloudUpload } from 'lucide-react';
+import { PlusCircle, Users, UserPlus, Trash2, Edit3, Save, XCircle, Swords, Target, Trophy as TrophyIcon, Download, RefreshCcw, Upload, Printer, ListOrdered } from 'lucide-react'; // Removed CloudUpload
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import {
   AlertDialog,
@@ -25,9 +25,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
-import { useAuth } from '@/contexts/AuthContext';
-import { firestore } from '@/lib/firebase';
-import { doc, setDoc, getDoc } from 'firebase/firestore';
+// Removed AuthContext and Firestore imports
 
 type ScorerInfo = Player & { teamName: string; groupName?: string };
 
@@ -104,125 +102,68 @@ export function GroupManager() {
   const [tournamentScorer, setTournamentScorer] = useState<ScorerInfo | null>(null);
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const { user, loading: authLoading } = useAuth();
+  // Removed user and authLoading state from useAuth
   const [dataLoaded, setDataLoaded] = useState(false);
 
   // Load data effect
   useEffect(() => {
-    if (authLoading) return; // Wait for auth state to be determined
-
+    // Removed authLoading check
     const loadData = async () => {
-      let loadedFromFirestore = false;
-      if (user) {
+      // Removed Firestore loading logic
+      const savedGroups = localStorage.getItem('tournamentGroups');
+      if (savedGroups) {
         try {
-          const docRef = doc(firestore, "komi", user.uid);
-          const docSnap = await getDoc(docRef);
-          if (docSnap.exists()) {
-            const firestoreData = docSnap.data();
-            if (firestoreData && firestoreData.tournamentGroupsData && Array.isArray(firestoreData.tournamentGroupsData)) {
-              let parsedGroups = firestoreData.tournamentGroupsData as Group[];
-              // Apply migrations/validations similar to localStorage
-              parsedGroups = parsedGroups.map(group => ({
-                ...group,
-                id: group.id || crypto.randomUUID(),
-                name: group.name || "Unnamed Group",
-                teams: Array.isArray(group.teams) ? group.teams.map(team => ({
-                  ...team,
-                  id: team.id || crypto.randomUUID(),
-                  name: team.name || "Unnamed Team",
-                  players: Array.isArray(team.players) ? team.players.map(player => ({
-                    ...player,
-                    id: player.id || crypto.randomUUID(),
-                    name: player.name || "Unnamed Player",
-                    position: player.position || "Center Forward",
-                    goals: typeof player.goals === 'number' ? player.goals : 0,
-                  })) : [],
-                  points: typeof team.points === 'number' ? team.points : 0,
-                  played: typeof team.played === 'number' ? team.played : 0,
-                  won: typeof team.won === 'number' ? team.won : 0,
-                  drawn: typeof team.drawn === 'number' ? team.drawn : 0,
-                  lost: typeof team.lost === 'number' ? team.lost : 0,
-                  goalsFor: typeof team.goalsFor === 'number' ? team.goalsFor : 0,
-                  goalsAgainst: typeof team.goalsAgainst === 'number' ? team.goalsAgainst : 0,
-                  goalDifference: typeof team.goalDifference === 'number' ? team.goalDifference : 0,
+          let parsedGroups = JSON.parse(savedGroups) as Group[];
+          if (Array.isArray(parsedGroups)) {
+            parsedGroups = parsedGroups.map(group => ({
+              ...group,
+              id: group.id || crypto.randomUUID(),
+              name: group.name || "Unnamed Group",
+              teams: Array.isArray(group.teams) ? group.teams.map(team => ({
+                ...team,
+                id: team.id || crypto.randomUUID(),
+                name: team.name || "Unnamed Team",
+                players: Array.isArray(team.players) ? team.players.map(player => ({
+                  ...player,
+                  id: player.id || crypto.randomUUID(),
+                  name: player.name || "Unnamed Player",
+                  position: player.position || "Center Forward",
+                  goals: typeof player.goals === 'number' ? player.goals : 0,
                 })) : [],
-                matches: Array.isArray(group.matches) ? group.matches.map(match => ({
-                    ...match,
-                    id: match.id || crypto.randomUUID(),
-                    teamAScoreActual: match.teamAScoreActual ?? 0,
-                    teamBScoreActual: match.teamBScoreActual ?? 0,
-                })) : [],
-              }));
-              setGroups(parsedGroups.map(group => ({
+                points: typeof team.points === 'number' ? team.points : 0,
+                played: typeof team.played === 'number' ? team.played : 0,
+                won: typeof team.won === 'number' ? team.won : 0,
+                drawn: typeof team.drawn === 'number' ? team.drawn : 0,
+                lost: typeof team.lost === 'number' ? team.lost : 0,
+                goalsFor: typeof team.goalsFor === 'number' ? team.goalsFor : 0,
+                goalsAgainst: typeof team.goalsAgainst === 'number' ? team.goalsAgainst : 0,
+                goalDifference: typeof team.goalDifference === 'number' ? team.goalDifference : 0,
+              })) : [],
+              matches: Array.isArray(group.matches) ? group.matches.map(match => ({
+                  ...match,
+                  id: match.id || crypto.randomUUID(),
+                  teamAScoreActual: match.teamAScoreActual ?? 0,
+                  teamBScoreActual: match.teamBScoreActual ?? 0,
+              })) : [],
+            }));
+            
+            const validatedGroups = parsedGroups.filter(group => group.id && group.name && Array.isArray(group.teams) && Array.isArray(group.matches));
+            if (validatedGroups.length === parsedGroups.length) {
+               setGroups(validatedGroups.map(group => ({
                   ...group,
                   teams: calculateTeamStats(group.teams, group.matches)
-              })));
-              toast({ title: "نجاح", description: "تم تحميل البيانات من السحابة." });
-              loadedFromFirestore = true;
-            }
-          }
-        } catch (error) {
-          console.error("Failed to load data from Firestore:", error);
-          toast({ title: "خطأ", description: "فشل تحميل البيانات من السحابة. جارٍ محاولة التحميل من التخزين المحلي.", variant: "destructive" });
-        }
-      }
-
-      if (!loadedFromFirestore) {
-        const savedGroups = localStorage.getItem('tournamentGroups');
-        if (savedGroups) {
-          try {
-            let parsedGroups = JSON.parse(savedGroups) as Group[];
-            if (Array.isArray(parsedGroups)) {
-              parsedGroups = parsedGroups.map(group => ({
-                ...group,
-                id: group.id || crypto.randomUUID(),
-                name: group.name || "Unnamed Group",
-                teams: Array.isArray(group.teams) ? group.teams.map(team => ({
-                  ...team,
-                  id: team.id || crypto.randomUUID(),
-                  name: team.name || "Unnamed Team",
-                  players: Array.isArray(team.players) ? team.players.map(player => ({
-                    ...player,
-                    id: player.id || crypto.randomUUID(),
-                    name: player.name || "Unnamed Player",
-                    position: player.position || "Center Forward",
-                    goals: typeof player.goals === 'number' ? player.goals : 0,
-                  })) : [],
-                  points: typeof team.points === 'number' ? team.points : 0,
-                  played: typeof team.played === 'number' ? team.played : 0,
-                  won: typeof team.won === 'number' ? team.won : 0,
-                  drawn: typeof team.drawn === 'number' ? team.drawn : 0,
-                  lost: typeof team.lost === 'number' ? team.lost : 0,
-                  goalsFor: typeof team.goalsFor === 'number' ? team.goalsFor : 0,
-                  goalsAgainst: typeof team.goalsAgainst === 'number' ? team.goalsAgainst : 0,
-                  goalDifference: typeof team.goalDifference === 'number' ? team.goalDifference : 0,
-                })) : [],
-                matches: Array.isArray(group.matches) ? group.matches.map(match => ({
-                    ...match,
-                    id: match.id || crypto.randomUUID(),
-                    teamAScoreActual: match.teamAScoreActual ?? 0,
-                    teamBScoreActual: match.teamBScoreActual ?? 0,
-                })) : [],
-              }));
-              
-              const validatedGroups = parsedGroups.filter(group => group.id && group.name && Array.isArray(group.teams) && Array.isArray(group.matches));
-              if (validatedGroups.length === parsedGroups.length) {
-                 setGroups(validatedGroups.map(group => ({
-                    ...group,
-                    teams: calculateTeamStats(group.teams, group.matches)
-                 })));
-              } else {
-                console.error("Invalid data structure in localStorage after migration. Resetting.");
-                localStorage.removeItem('tournamentGroups');
-              }
+               })));
             } else {
-              console.error("Invalid data structure in localStorage. Resetting.");
+              console.error("Invalid data structure in localStorage after migration. Resetting.");
               localStorage.removeItem('tournamentGroups');
             }
-          } catch (error) {
-            console.error("Failed to parse or migrate groups from localStorage:", error);
-            localStorage.removeItem('tournamentGroups'); 
+          } else {
+            console.error("Invalid data structure in localStorage. Resetting.");
+            localStorage.removeItem('tournamentGroups');
           }
+        } catch (error) {
+          console.error("Failed to parse or migrate groups from localStorage:", error);
+          localStorage.removeItem('tournamentGroups'); 
         }
       }
       setDataLoaded(true);
@@ -230,12 +171,12 @@ export function GroupManager() {
     
     loadData();
 
-  }, [user, authLoading, toast]);
+  }, []); // Dependencies changed to empty array
 
 
   // Save to localStorage and update scorer effect
   useEffect(() => {
-    if (!dataLoaded) return; // Don't save to localStorage until initial data load is complete
+    if (!dataLoaded) return; 
 
     localStorage.setItem('tournamentGroups', JSON.stringify(groups));
 
@@ -412,7 +353,6 @@ export function GroupManager() {
       }
       return group;
     }));
-     // No toast here to avoid spamming for every goal/position change
   };
 
   const handleGenerateMatches = (groupId: string) => {
@@ -445,7 +385,7 @@ export function GroupManager() {
   const handleUpdateMatchResult = (
     groupId: string, 
     matchId: string, 
-    teamAResultInput: MatchResult, // This might become redundant if scores dictate result
+    teamAResultInput: MatchResult,
     teamAScoreActualInput?: number, 
     teamBScoreActualInput?: number
   ) => {
@@ -453,7 +393,7 @@ export function GroupManager() {
         if (group.id === groupId) {
             const updatedMatches = group.matches.map(match => {
                 if (match.id === matchId) {
-                    let result = teamAResultInput; // Keep if direct result setting is needed
+                    let result = teamAResultInput; 
                     const newTeamAScore = teamAScoreActualInput ?? match.teamAScoreActual ?? 0;
                     const newTeamBScore = teamBScoreActualInput ?? match.teamBScoreActual ?? 0;
 
@@ -500,32 +440,14 @@ export function GroupManager() {
     }
   };
 
-  const handleSaveToFirestore = async () => {
-    if (!user) {
-      toast({ title: "خطأ", description: "يجب تسجيل الدخول لحفظ البيانات في السحابة.", variant: "destructive" });
-      return;
-    }
-    try {
-      const docRef = doc(firestore, "komi", user.uid);
-      await setDoc(docRef, { tournamentGroupsData: groups });
-      toast({ title: "نجاح", description: "تم حفظ البيانات في السحابة بنجاح!" });
-    } catch (error) {
-      console.error("Failed to save data to Firestore:", error);
-      toast({ title: "خطأ", description: "فشل حفظ البيانات في السحابة.", variant: "destructive" });
-    }
-  };
-
+  // Removed handleSaveToFirestore function
 
   const handleResetData = () => {
     setGroups([]);
     setNewGroupName('');
     setTournamentScorer(null);
-    localStorage.removeItem('tournamentGroups'); // Clear local storage too
-    // Optionally, clear Firestore data too, or make it a separate button
-    // if (user) {
-    //   const docRef = doc(firestore, "komi", user.uid);
-    //   deleteDoc(docRef); // Or set to empty: setDoc(docRef, { tournamentGroupsData: [] });
-    // }
+    localStorage.removeItem('tournamentGroups'); 
+    // Removed Firestore deletion comments
     toast({ title: "نجاح", description: "تمت إعادة تعيين جميع بيانات البطولة (محلياً).", variant: "default" });
   };
 
@@ -553,7 +475,7 @@ export function GroupManager() {
         if (typeof text === 'string') {
           let importedGroups = JSON.parse(text) as Group[];
           if (Array.isArray(importedGroups)) {
-             importedGroups = importedGroups.map(group => ({ // Migration/Validation from imported file
+             importedGroups = importedGroups.map(group => ({ 
                 ...group,
                 id: group.id || crypto.randomUUID(),
                 name: group.name || "Unnamed Group",
@@ -684,9 +606,7 @@ export function GroupManager() {
           <Button onClick={handleBackupData} variant="outline" className="w-full">
             <Download className="ml-2 h-5 w-5" /> تصدير إلى ملف
           </Button>
-           <Button onClick={handleSaveToFirestore} variant="outline" className="w-full" disabled={!user || authLoading}>
-            <CloudUpload className="ml-2 h-5 w-5" /> حفظ في السحابة
-          </Button>
+           {/* Removed Save to Firestore button */}
           <Button onClick={handlePrintData} variant="outline" className="w-full">
             <Printer className="ml-2 h-5 w-5" /> طباعة كل البيانات
           </Button>
@@ -700,7 +620,7 @@ export function GroupManager() {
               <AlertDialogHeader>
                 <AlertDialogTitle>هل أنت متأكد تمامًا؟</AlertDialogTitle>
                 <AlertDialogDescription>
-                  سيؤدي هذا الإجراء إلى حذف جميع بيانات البطولة المخزنة محلياً (المجموعات، الفرق، اللاعبون، والمباريات). لا يمكن التراجع عن هذا الإجراء. لن يتم حذف البيانات المحفوظة في السحابة.
+                  سيؤدي هذا الإجراء إلى حذف جميع بيانات البطولة المخزنة محلياً (المجموعات، الفرق، اللاعبون، والمباريات). لا يمكن التراجع عن هذا الإجراء.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>

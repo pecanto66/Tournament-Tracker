@@ -1,28 +1,11 @@
 
-"use client"; // This page needs to be a client component for auth checks
+"use client"; 
 
-import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { useAuth } from '@/contexts/AuthContext';
+// Removed useEffect, useRouter, useAuth
 import { GroupManager } from '@/components/tournament/GroupManager';
 
 export default function TournamentPage() {
-  const { user, loading } = useAuth();
-  const router = useRouter();
-
-  useEffect(() => {
-    if (!loading && !user) {
-      router.push('/login');
-    }
-  }, [user, loading, router]);
-
-  if (loading) {
-    return <div className="flex justify-center items-center min-h-screen"><p>جار تحميل بيانات المستخدم...</p></div>;
-  }
-
-  if (!user) {
-     return <div className="flex justify-center items-center min-h-screen"><p>الرجاء تسجيل الدخول للمتابعة.</p></div>;
-  }
+  // Removed user, loading, router variables and useEffect for auth check
 
   return (
     <div className="container mx-auto px-4 py-8">
