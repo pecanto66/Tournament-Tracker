@@ -2,11 +2,21 @@
 "use client";
 
 import Link from 'next/link';
-import { Trophy, Home } from 'lucide-react'; // Removed LogIn, LogOut, UserCircle
-// Removed useAuth, Button
+import { Trophy, Home, LogIn, LogOut, UserCircle } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
+import { Button } from '@/components/ui/button';
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 export function Navbar() {
-  // Removed const { user, signInWithGoogle, signOutUser, loading } = useAuth();
+  const { user, signInWithGoogle, signOutUser, loading } = useAuth();
 
   return (
     <header className="bg-primary text-primary-foreground shadow-lg sticky top-0 z-50">
@@ -23,7 +33,42 @@ export function Navbar() {
           <Link href="/tournament" className="flex items-center gap-1.5 text-base font-medium hover:text-accent transition-colors">
             البطولات
           </Link>
-          {/* Removed auth related buttons/text */}
+          {loading ? (
+            <div className="text-sm">جار التحميل...</div>
+          ) : user ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="relative h-10 w-10 rounded-full p-0 hover:bg-primary/80">
+                  <Avatar className="h-9 w-9 border-2 border-accent">
+                    <AvatarImage src={user.photoURL || undefined} alt={user.displayName || "User"} />
+                    <AvatarFallback>
+                      {user.displayName ? user.displayName.charAt(0).toUpperCase() : <UserCircle />}
+                    </AvatarFallback>
+                  </Avatar>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="w-56" align="end" forceMount>
+                <DropdownMenuLabel className="font-normal">
+                  <div className="flex flex-col space-y-1">
+                    <p className="text-sm font-medium leading-none">{user.displayName || "المستخدم"}</p>
+                    <p className="text-xs leading-none text-muted-foreground">
+                      {user.email}
+                    </p>
+                  </div>
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={signOutUser} className="cursor-pointer text-destructive focus:text-destructive focus:bg-destructive/10">
+                  <LogOut className="ml-2 h-4 w-4" />
+                  تسجيل الخروج
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : (
+            <Button onClick={signInWithGoogle} variant="secondary" size="sm" className="bg-accent hover:bg-accent/90 text-accent-foreground">
+              <LogIn className="ml-2 h-4 w-4" />
+              تسجيل الدخول
+            </Button>
+          )}
         </div>
       </div>
     </header>
