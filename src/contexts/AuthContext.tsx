@@ -1,14 +1,15 @@
 
 "use client";
 
-import type { User } from 'firebase/auth';
+import type { User } from 'firebase/auth'; // This import might become unused
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { auth, googleProvider } from '@/lib/firebase';
-import { signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth';
+// Firebase imports removed
+// import { auth, googleProvider } from '@/lib/firebase';
+// import { signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth';
 import { useToast } from "@/hooks/use-toast";
 
 interface AuthContextType {
-  user: User | null;
+  user: User | null; // Or a simplified user object if not using Firebase User
   loading: boolean;
   signInWithGoogle: () => Promise<void>;
   signOutUser: () => Promise<void>;
@@ -17,42 +18,29 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState<User | null>(null); // Consider a simpler user type or null if no auth
+  const [loading, setLoading] = useState(true); // May default to false if no auth operations
   const { toast } = useToast();
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-      setUser(currentUser);
-      setLoading(false);
-    });
-    return () => unsubscribe();
+    // Mock loading or remove if no auth initialization
+    setLoading(false);
   }, []);
 
   const signInWithGoogle = async () => {
-    setLoading(true);
-    try {
-      await signInWithPopup(auth, googleProvider);
-      toast({ title: "Succès", description: "Connexion réussie." });
-    } catch (error: any) {
-      console.error("Error signing in with Google: ", error);
-      toast({ title: "Erreur de connexion", description: error.message, variant: "destructive" });
-      setLoading(false); 
-    }
-  };
-
-  const signOutUser = async () => {
-    setLoading(true);
-    try {
-      await signOut(auth);
-      toast({ title: "Succès", description: "Déconnexion réussie." });
-    } catch (error: any) {
-      console.error("Error signing out: ", error);
-      toast({ title: "Erreur de déconnexion", description: error.message, variant: "destructive" });
-    }
+    toast({ title: "Information", description: "La connexion Google n'est pas configurée." });
     setLoading(false);
   };
 
+  const signOutUser = async () => {
+    setUser(null);
+    toast({ title: "Information", description: "Déconnexion (locale) effectuée." });
+    setLoading(false);
+  };
+
+  // If no auth, loading can be defaulted to false
+  // and user to null, simplifying the provider.
+  // For now, it retains the structure but with stubbed functions.
   return (
     <AuthContext.Provider value={{ user, loading, signInWithGoogle, signOutUser }}>
       {children}
@@ -63,7 +51,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 export function useAuth() {
   const context = useContext(AuthContext);
   if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
+    // This can be removed if AuthProvider is removed from layout.tsx
+    // throw new Error('useAuth must be used within an AuthProvider');
+    // Or return a default mock state if AuthProvider is optional
+    return { user: null, loading: false, signInWithGoogle: async () => {}, signOutUser: async () => {} };
   }
   return context;
 }
