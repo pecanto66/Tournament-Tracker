@@ -3,7 +3,7 @@
 
 import Link from 'next/link';
 import { Trophy, Home, LogIn, LogOut, UserCircle } from 'lucide-react';
-// import { useAuth } from '@/contexts/AuthContext'; // useAuth removed
+import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -16,13 +16,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 export function Navbar() {
-  // const { user, signInWithGoogle, signOutUser, loading } = useAuth(); // Auth logic removed
-  const user = null; // Mock user as null
-  const loading = false; // Mock loading as false
-
-  const signInWithGoogle = () => alert("Fonctionnalité de connexion désactivée.");
-  const signOutUser = () => alert("Fonctionnalité de déconnexion désactivée.");
-
+  const { user, signInWithGoogle, signOutUser, loading } = useAuth();
 
   return (
     <header className="bg-primary text-primary-foreground shadow-lg sticky top-0 z-50">
@@ -39,8 +33,7 @@ export function Navbar() {
           <Link href="/tournament" className="flex items-center gap-1.5 text-base font-medium hover:text-accent transition-colors">
             Tournois
           </Link>
-          {/* Auth related UI removed/commented out */}
-          {/* {loading ? (
+          {loading ? (
             <div className="text-sm">Chargement...</div>
           ) : user ? (
             <DropdownMenu>
@@ -75,11 +68,7 @@ export function Navbar() {
               <LogIn className="ml-2 h-4 w-4" />
               Se connecter
             </Button>
-          )} */}
-           <Button onClick={() => alert("La fonctionnalité de connexion n'est pas active.")} variant="secondary" size="sm" className="bg-accent hover:bg-accent/90 text-accent-foreground">
-              <LogIn className="ml-2 h-4 w-4" />
-              Se connecter
-            </Button>
+          )}
         </div>
       </div>
     </header>
