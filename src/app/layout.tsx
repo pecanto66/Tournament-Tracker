@@ -3,11 +3,11 @@ import type { Metadata } from 'next';
 import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
 import { Navbar } from '@/components/Navbar';
-import { AuthProvider } from '@/contexts/AuthContext'; // Added AuthProvider
+import { AuthProvider } from '@/contexts/AuthContext';
 
 export const metadata: Metadata = {
-  title: 'دورة التحدي',
-  description: 'Tournament Tracker App for managing football tournaments, teams, matches, and player stats.',
+  title: 'Dorra Challenge',
+  description: 'Application de suivi de tournois pour gérer les tournois de football, les équipes, les matchs et les statistiques des joueurs.',
 };
 
 export default function RootLayout({

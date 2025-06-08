@@ -21,7 +21,7 @@ export default function LoginPage() {
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-br from-primary/10 via-background to-accent/10 p-4">
-        <p className="text-xl text-primary">جار التحميل...</p>
+        <p className="text-xl text-primary">Chargement...</p>
       </div>
     );
   }
@@ -29,7 +29,7 @@ export default function LoginPage() {
   if (user) {
      return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-br from-primary/10 via-background to-accent/10 p-4">
-        <p className="text-xl text-primary">يتم توجيهك إلى لوحة التحكم...</p>
+        <p className="text-xl text-primary">Redirection vers le tableau de bord...</p>
       </div>
     );
   }
@@ -45,19 +45,19 @@ export default function LoginPage() {
             className="mx-auto mb-6 rounded-full border-4 border-primary shadow-lg"
             data-ai-hint="trophy logo" 
         />
-        <h1 className="text-4xl font-headline font-bold text-primary mb-4">دورة التحدي</h1>
+        <h1 className="text-4xl font-headline font-bold text-primary mb-4">Dorra Challenge</h1>
         <p className="text-muted-foreground mb-8 text-lg">
-          مرحباً بك! الرجاء تسجيل الدخول للمتابعة.
+          Bienvenue ! Veuillez vous connecter pour continuer.
         </p>
         <Button onClick={signInWithGoogle} size="lg" className="w-full font-semibold text-base py-3 bg-accent hover:bg-accent/90 text-accent-foreground">
-          <LogIn className="ml-2 h-5 w-5" /> تسجيل الدخول باستخدام جوجل
+          <LogIn className="ml-2 h-5 w-5" /> Se connecter avec Google
         </Button>
          <p className="text-xs text-muted-foreground mt-8">
-          بتسجيل الدخول، فإنك توافق على شروط الخدمة وسياسة الخصوصية الخاصة بنا.
+          En vous connectant, vous acceptez nos conditions d'utilisation et notre politique de confidentialité.
         </p>
       </div>
        <p className="mt-8 text-sm text-foreground/80">
-        تطبيق دورة التحدي &copy; {new Date().getFullYear()}
+        Application Dorra Challenge &copy; {new Date().getFullYear()}
       </p>
     </div>
   );

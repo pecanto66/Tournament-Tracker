@@ -33,23 +33,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setLoading(true);
     try {
       await signInWithPopup(auth, googleProvider);
-      toast({ title: "نجاح", description: "تم تسجيل الدخول بنجاح." });
+      toast({ title: "Succès", description: "Connexion réussie." });
     } catch (error: any) {
       console.error("Error signing in with Google: ", error);
-      toast({ title: "خطأ في تسجيل الدخول", description: error.message, variant: "destructive" });
-      setLoading(false); // Ensure loading is false on error
+      toast({ title: "Erreur de connexion", description: error.message, variant: "destructive" });
+      setLoading(false); 
     }
-    // setLoading(false) will be handled by onAuthStateChanged
   };
 
   const signOutUser = async () => {
     setLoading(true);
     try {
       await signOut(auth);
-      toast({ title: "نجاح", description: "تم تسجيل الخروج بنجاح." });
+      toast({ title: "Succès", description: "Déconnexion réussie." });
     } catch (error: any) {
       console.error("Error signing out: ", error);
-      toast({ title: "خطأ في تسجيل الخروج", description: error.message, variant: "destructive" });
+      toast({ title: "Erreur de déconnexion", description: error.message, variant: "destructive" });
     }
     setLoading(false);
   };

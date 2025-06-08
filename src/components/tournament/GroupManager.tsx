@@ -27,7 +27,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from '@/contexts/AuthContext';
 import { db } from '@/lib/firebase';
-import { doc, setDoc, getDoc, deleteDoc } from 'firebase/firestore';
+import { doc, setDoc, getDoc } from 'firebase/firestore';
 
 
 type ScorerInfo = Player & { teamName: string; groupName?: string };
@@ -114,7 +114,7 @@ export function GroupManager() {
 
   // Load data effect
   useEffect(() => {
-    if (authLoading) return; // Wait for authentication to resolve
+    if (authLoading) return; 
 
     const loadData = async () => {
       let loadedFromCloud = false;
@@ -129,15 +129,15 @@ export function GroupManager() {
                parsedGroups = parsedGroups.map(group => ({
                 ...group,
                 id: group.id || crypto.randomUUID(),
-                name: group.name || "Unnamed Group",
+                name: group.name || "Groupe sans nom",
                 teams: Array.isArray(group.teams) ? group.teams.map(team => ({
                   ...team,
                   id: team.id || crypto.randomUUID(),
-                  name: team.name || "Unnamed Team",
+                  name: team.name || "Équipe sans nom",
                   players: Array.isArray(team.players) ? team.players.map(player => ({
                     ...player,
                     id: player.id || crypto.randomUUID(),
-                    name: player.name || "Unnamed Player",
+                    name: player.name || "Joueur sans nom",
                     position: player.position || "Center Forward",
                     goals: typeof player.goals === 'number' ? player.goals : 0,
                   })) : [],
@@ -162,12 +162,12 @@ export function GroupManager() {
                   teams: calculateTeamStats(group.teams, group.matches)
               })));
               loadedFromCloud = true;
-              toast({ title: "نجاح", description: "تم تحميل البيانات من السحابة." });
+              toast({ title: "Succès", description: "Données chargées depuis le cloud." });
             }
           }
         } catch (error) {
           console.error("Failed to load data from Firestore:", error);
-          toast({ title: "خطأ", description: "فشل تحميل البيانات من السحابة. جارٍ محاولة التحميل من التخزين المحلي.", variant: "destructive" });
+          toast({ title: "Erreur", description: "Échec du chargement des données depuis le cloud. Tentative de chargement depuis le stockage local.", variant: "destructive" });
         }
       }
 
@@ -180,15 +180,15 @@ export function GroupManager() {
               parsedGroups = parsedGroups.map(group => ({
                 ...group,
                 id: group.id || crypto.randomUUID(),
-                name: group.name || "Unnamed Group",
+                name: group.name || "Groupe sans nom",
                 teams: Array.isArray(group.teams) ? group.teams.map(team => ({
                   ...team,
                   id: team.id || crypto.randomUUID(),
-                  name: team.name || "Unnamed Team",
+                  name: team.name || "Équipe sans nom",
                   players: Array.isArray(team.players) ? team.players.map(player => ({
                     ...player,
                     id: player.id || crypto.randomUUID(),
-                    name: player.name || "Unnamed Player",
+                    name: player.name || "Joueur sans nom",
                     position: player.position || "Center Forward",
                     goals: typeof player.goals === 'number' ? player.goals : 0,
                   })) : [],
@@ -239,7 +239,7 @@ export function GroupManager() {
 
   // Save to localStorage and update scorer effect
   useEffect(() => {
-    if (!dataLoaded || authLoading) return; // Don't save to local storage if data isn't fully loaded or auth is pending
+    if (!dataLoaded || authLoading) return; 
 
     localStorage.setItem('tournamentGroups', JSON.stringify(groups));
 
@@ -275,7 +275,7 @@ export function GroupManager() {
 
   const handleAddGroup = () => {
     if (!newGroupName.trim()) {
-      toast({ title: "خطأ", description: "الرجاء إدخال اسم للمجموعة.", variant: "destructive" });
+      toast({ title: "Erreur", description: "Veuillez entrer un nom pour le groupe.", variant: "destructive" });
       return;
     }
     const newGroup: Group = {
@@ -286,23 +286,23 @@ export function GroupManager() {
     };
     setGroups(prev => [...prev, newGroup]);
     setNewGroupName('');
-    toast({ title: "نجاح", description: `تمت إضافة المجموعة "${newGroupName}" بنجاح.` });
+    toast({ title: "Succès", description: `Le groupe "${newGroupName}" a été ajouté.` });
   };
 
   const handleDeleteGroup = (groupId: string) => {
     setGroups(prev => prev.filter(g => g.id !== groupId));
-    toast({ title: "نجاح", description: "تم حذف المجموعة." });
+    toast({ title: "Succès", description: "Le groupe a été supprimé." });
   };
 
   const handleAddTeam = (groupId: string, teamName: string) => {
     if (!teamName.trim()) {
-      toast({ title: "خطأ", description: "الرجاء إدخال اسم للفريق.", variant: "destructive" });
+      toast({ title: "Erreur", description: "Veuillez entrer un nom pour l'équipe.", variant: "destructive" });
       return;
     }
     setGroups(prev => prev.map(group => {
       if (group.id === groupId) {
         if (group.teams.find(t => t.name.toLowerCase() === teamName.toLowerCase())) {
-          toast({ title: "خطأ", description: `الفريق "${teamName}" موجود بالفعل في هذه المجموعة.`, variant: "destructive" });
+          toast({ title: "Erreur", description: `L'équipe "${teamName}" existe déjà dans ce groupe.`, variant: "destructive" });
           return group;
         }
         const newTeam: Team = { 
@@ -323,7 +323,7 @@ export function GroupManager() {
       }
       return group;
     }));
-    toast({ title: "نجاح", description: `تمت إضافة الفريق "${teamName}".` });
+    toast({ title: "Succès", description: `L'équipe "${teamName}" a été ajoutée.` });
   };
 
   const handleDeleteTeam = (groupId: string, teamId: string) => {
@@ -340,13 +340,13 @@ export function GroupManager() {
       }
       return group;
     }));
-    toast({ title: "نجاح", description: "تم حذف الفريق والمباريات المرتبطة به." });
+    toast({ title: "Succès", description: "L'équipe et ses matchs associés ont été supprimés." });
   };
 
 
   const handleAddPlayer = (groupId: string, teamId: string, playerName: string, position: PlayerPosition) => {
      if (!playerName.trim()) {
-      toast({ title: "خطأ", description: "الرجاء إدخال اسم اللاعب.", variant: "destructive" });
+      toast({ title: "Erreur", description: "Veuillez entrer un nom pour le joueur.", variant: "destructive" });
       return;
     }
     setGroups(prev => prev.map(group => {
@@ -356,7 +356,7 @@ export function GroupManager() {
           teams: group.teams.map(team => {
             if (team.id === teamId) {
               if (team.players.find(p => p.name.toLowerCase() === playerName.toLowerCase())) {
-                 toast({ title: "خطأ", description: `اللاعب "${playerName}" موجود بالفعل في هذا الفريق.`, variant: "destructive" });
+                 toast({ title: "Erreur", description: `Le joueur "${playerName}" existe déjà dans cette équipe.`, variant: "destructive" });
                  return team;
               }
               const newPlayer: Player = { id: crypto.randomUUID(), name: playerName, position, goals: 0 };
@@ -368,7 +368,7 @@ export function GroupManager() {
       }
       return group;
     }));
-    toast({ title: "نجاح", description: `تمت إضافة اللاعب "${playerName}".` });
+    toast({ title: "Succès", description: `Le joueur "${playerName}" a été ajouté.` });
   };
 
   const handleDeletePlayer = (groupId: string, teamId: string, playerId: string) => {
@@ -386,7 +386,7 @@ export function GroupManager() {
       }
       return group;
     }));
-    toast({ title: "نجاح", description: "تم حذف اللاعب." });
+    toast({ title: "Succès", description: "Le joueur a été supprimé." });
   };
 
   const handleUpdatePlayer = (groupId: string, teamId: string, playerId: string, newPosition?: PlayerPosition, newGoals?: number) => {
@@ -422,7 +422,7 @@ export function GroupManager() {
     setGroups(prev => prev.map(group => {
       if (group.id === groupId) {
         if (group.teams.length < 2) {
-          toast({ title: "خطأ", description: "تحتاج إلى فريقين على الأقل لإنشاء المباريات.", variant: "destructive" });
+          toast({ title: "Erreur", description: "Il faut au moins deux équipes pour générer des matchs.", variant: "destructive" });
           return group;
         }
         const newMatches: Match[] = [];
@@ -438,7 +438,7 @@ export function GroupManager() {
           }
         }
         const teamsWithResetStats = calculateTeamStats(group.teams, newMatches);
-        toast({ title: "نجاح", description: "تم إنشاء المباريات بنجاح." });
+        toast({ title: "Succès", description: "Les matchs ont été générés." });
         return { ...group, matches: newMatches, teams: teamsWithResetStats };
       }
       return group;
@@ -476,7 +476,7 @@ export function GroupManager() {
             });
 
             const updatedTeamsWithStats = calculateTeamStats(group.teams, updatedMatches);
-            toast({ title: "نجاح", description: "تم تحديث نتيجة المباراة." });
+            toast({ title: "Succès", description: "Le résultat du match a été mis à jour." });
             return { ...group, matches: updatedMatches, teams: updatedTeamsWithStats };
         }
         return group;
@@ -496,26 +496,26 @@ export function GroupManager() {
       document.body.appendChild(linkElement); 
       linkElement.click();
       document.body.removeChild(linkElement); 
-      toast({ title: "نجاح", description: "تم تصدير البيانات إلى ملف." });
+      toast({ title: "Succès", description: "Données exportées vers un fichier." });
     } catch (error) {
       console.error("Failed to backup data:", error);
-      toast({ title: "خطأ", description: "فشل تصدير البيانات.", variant: "destructive" });
+      toast({ title: "Erreur", description: "Échec de l'exportation des données.", variant: "destructive" });
     }
   };
 
   const handleSaveToFirestore = async () => {
     if (!user) {
-      toast({ title: "خطأ", description: "يجب تسجيل الدخول لحفظ البيانات في السحابة.", variant: "destructive" });
+      toast({ title: "Erreur", description: "Vous devez être connecté pour sauvegarder les données sur le cloud.", variant: "destructive" });
       return;
     }
     setIsSavingToCloud(true);
     try {
       const userDocRef = doc(db, FIRESTORE_COLLECTION_NAME, user.uid);
       await setDoc(userDocRef, { tournamentGroupsData: groups, updatedAt: new Date().toISOString() });
-      toast({ title: "نجاح", description: "تم حفظ البيانات في السحابة بنجاح!" });
+      toast({ title: "Succès", description: "Données sauvegardées sur le cloud avec succès !" });
     } catch (error) {
       console.error("Error saving data to Firestore: ", error);
-      toast({ title: "خطأ", description: "فشل حفظ البيانات في السحابة.", variant: "destructive" });
+      toast({ title: "Erreur", description: "Échec de la sauvegarde des données sur le cloud.", variant: "destructive" });
     } finally {
       setIsSavingToCloud(false);
     }
@@ -527,7 +527,7 @@ export function GroupManager() {
     setNewGroupName('');
     setTournamentScorer(null);
     localStorage.removeItem('tournamentGroups'); 
-    toast({ title: "نجاح", description: "تمت إعادة تعيين جميع بيانات البطولة (محلياً).", variant: "default" });
+    toast({ title: "Succès", description: "Toutes les données du tournoi ont été réinitialisées (localement).", variant: "default" });
   };
 
   const handleImportTrigger = () => {
@@ -537,12 +537,12 @@ export function GroupManager() {
   const handleFileSelected = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) {
-      toast({ title: "خطأ", description: "لم يتم تحديد أي ملف.", variant: "destructive" });
+      toast({ title: "Erreur", description: "Aucun fichier sélectionné.", variant: "destructive" });
       return;
     }
 
     if (file.type !== "application/json") {
-      toast({ title: "خطأ", description: "الرجاء تحديد ملف JSON صالح.", variant: "destructive" });
+      toast({ title: "Erreur", description: "Veuillez sélectionner un fichier JSON valide.", variant: "destructive" });
       if (event.target) event.target.value = ''; 
       return;
     }
@@ -557,15 +557,15 @@ export function GroupManager() {
              importedGroups = importedGroups.map(group => ({ 
                 ...group,
                 id: group.id || crypto.randomUUID(),
-                name: group.name || "Unnamed Group",
+                name: group.name || "Groupe sans nom",
                 teams: Array.isArray(group.teams) ? group.teams.map(team => ({
                   ...team,
                   id: team.id || crypto.randomUUID(),
-                  name: team.name || "Unnamed Team",
+                  name: team.name || "Équipe sans nom",
                   players: Array.isArray(team.players) ? team.players.map(player =>({
                     ...player,
                     id: player.id || crypto.randomUUID(),
-                    name: player.name || "Unnamed Player",
+                    name: player.name || "Joueur sans nom",
                     position: player.position || "Center Forward",
                     goals: typeof player.goals === 'number' ? player.goals : 0,
                   })) : [],
@@ -610,25 +610,25 @@ export function GroupManager() {
                     ...group,
                     teams: calculateTeamStats(group.teams, group.matches)
                 })));
-                toast({ title: "نجاح", description: "تم استيراد البيانات من الملف بنجاح." });
+                toast({ title: "Succès", description: "Données importées depuis le fichier avec succès." });
             } else {
-                throw new Error("ملف JSON ببنية بيانات غير صالحة بعد المعالجة.");
+                throw new Error("Fichier JSON avec une structure de données invalide après traitement.");
             }
           } else {
-            throw new Error("ملف JSON ببنية بيانات غير صالحة.");
+            throw new Error("Fichier JSON avec une structure de données invalide.");
           }
         } else {
-          throw new Error("فشل قراءة محتوى الملف.");
+          throw new Error("Échec de la lecture du contenu du fichier.");
         }
       } catch (error: any) {
         console.error("Failed to import data:", error);
-        toast({ title: "خطأ", description: `فشل استيراد البيانات. ${error.message || "تأكد من أن الملف بالتنسيق الصحيح."}`, variant: "destructive" });
+        toast({ title: "Erreur", description: `Échec de l'importation des données. ${error.message || "Assurez-vous que le fichier est au bon format."}`, variant: "destructive" });
       } finally {
           if(event.target) event.target.value = ''; 
       }
     };
     reader.onerror = () => {
-      toast({ title: "خطأ", description: "فشل قراءة الملف.", variant: "destructive" });
+      toast({ title: "Erreur", description: "Échec de la lecture du fichier.", variant: "destructive" });
       if(event.target) event.target.value = ''; 
     };
     reader.readAsText(file);
@@ -636,7 +636,7 @@ export function GroupManager() {
 
   const handlePrintData = () => {
     window.print();
-    toast({ title: "طباعة", description: "تم إرسال البيانات إلى نافذة الطباعة." });
+    toast({ title: "Impression", description: "Données envoyées à la fenêtre d'impression." });
   };
 
 
@@ -645,7 +645,7 @@ export function GroupManager() {
       <Card className="shadow-lg border-primary border-2">
         <CardHeader>
           <CardTitle className="text-2xl font-headline text-primary flex items-center gap-2">
-            <TrophyIcon className="w-7 h-7 text-accent" /> هداف البطولة
+            <TrophyIcon className="w-7 h-7 text-accent" /> Meilleur Buteur du Tournoi
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -656,10 +656,10 @@ export function GroupManager() {
               {tournamentScorer.groupName && `, ${tournamentScorer.groupName})`}
               {!tournamentScorer.groupName && tournamentScorer.teamName && ')'}
               <span className="mx-2">-</span>
-              {tournamentScorer.goals} أهداف
+              {tournamentScorer.goals} buts
             </p>
           ) : (
-            <p className="text-lg text-muted-foreground">لم يسجل أي لاعب أهدافًا بعد.</p>
+            <p className="text-lg text-muted-foreground">Aucun joueur n'a encore marqué de buts.</p>
           )}
         </CardContent>
       </Card>
@@ -667,7 +667,7 @@ export function GroupManager() {
       <Card className="shadow-lg border-primary border-2 no-print">
         <CardHeader>
           <CardTitle className="text-2xl font-headline text-primary flex items-center gap-2">
-             إدارة بيانات البطولة
+             Gestion des Données du Tournoi
           </CardTitle>
         </CardHeader>
         <CardContent className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
@@ -680,37 +680,37 @@ export function GroupManager() {
             id="import-file-input"
           />
           <Button onClick={handleImportTrigger} variant="outline" className="w-full">
-            <Upload className="ml-2 h-5 w-5" /> استيراد من ملف
+            <Upload className="ml-2 h-5 w-5" /> Importer depuis un fichier
           </Button>
           <Button onClick={handleBackupData} variant="outline" className="w-full">
-            <Download className="ml-2 h-5 w-5" /> تصدير إلى ملف
+            <Download className="ml-2 h-5 w-5" /> Exporter vers un fichier
           </Button>
           {user && (
             <Button onClick={handleSaveToFirestore} variant="outline" className="w-full" disabled={isSavingToCloud || authLoading}>
               <CloudUpload className="ml-2 h-5 w-5" /> 
-              {isSavingToCloud ? "جارٍ الحفظ..." : "حفظ في السحابة"}
+              {isSavingToCloud ? "Sauvegarde..." : "Sauvegarder sur le Cloud"}
             </Button>
           )}
           <Button onClick={handlePrintData} variant="outline" className="w-full">
-            <Printer className="ml-2 h-5 w-5" /> طباعة كل البيانات
+            <Printer className="ml-2 h-5 w-5" /> Imprimer toutes les données
           </Button>
           <AlertDialog>
             <AlertDialogTrigger asChild>
-              <Button variant="destructive" className="w-full md:col-span-2"> {/* Adjusted for better layout with 5 buttons */}
-                <RefreshCcw className="ml-2 h-5 w-5" /> إعادة تعيين البيانات المحلية
+              <Button variant="destructive" className="w-full md:col-span-2">
+                <RefreshCcw className="ml-2 h-5 w-5" /> Réinitialiser les données locales
               </Button>
             </AlertDialogTrigger>
             <AlertDialogContent dir="rtl">
               <AlertDialogHeader>
-                <AlertDialogTitle>هل أنت متأكد تمامًا؟</AlertDialogTitle>
+                <AlertDialogTitle>Êtes-vous absolument sûr ?</AlertDialogTitle>
                 <AlertDialogDescription>
-                  سيؤدي هذا الإجراء إلى حذف جميع بيانات البطولة المخزنة محلياً (المجموعات، الفرق، اللاعبون، والمباريات). لا يمكن التراجع عن هذا الإجراء. البيانات المحفوظة في السحابة (إذا وجدت) لن تتأثر.
+                  Cette action supprimera toutes les données du tournoi stockées localement (groupes, équipes, joueurs et matchs). Cette action ne peut pas être annulée. Les données sauvegardées sur le cloud (si elles existent) ne seront pas affectées.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
-                <AlertDialogCancel>إلغاء</AlertDialogCancel>
+                <AlertDialogCancel>Annuler</AlertDialogCancel>
                 <AlertDialogAction onClick={handleResetData}>
-                  نعم، قم بإعادة التعيين
+                  Oui, réinitialiser
                 </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>
@@ -722,23 +722,23 @@ export function GroupManager() {
       <Card className="shadow-lg border-primary border-2 no-print">
         <CardHeader>
           <CardTitle className="text-2xl font-headline text-primary flex items-center gap-2">
-            <PlusCircle className="w-7 h-7" /> إنشاء مجموعة جديدة
+            <PlusCircle className="w-7 h-7" /> Créer un nouveau groupe
           </CardTitle>
         </CardHeader>
         <CardContent className="flex gap-4 items-end">
           <div className="flex-grow">
-            <Label htmlFor="new-group-name" className="text-muted-foreground">اسم المجموعة</Label>
+            <Label htmlFor="new-group-name" className="text-muted-foreground">Nom du groupe</Label>
             <Input
               id="new-group-name"
               type="text"
               value={newGroupName}
               onChange={(e) => setNewGroupName(e.target.value)}
-              placeholder="مثال: المجموعة أ"
+              placeholder="Exemple: Groupe A"
               className="mt-1"
             />
           </div>
           <Button onClick={handleAddGroup} className="bg-primary hover:bg-primary/90">
-            <PlusCircle className="ml-2 h-5 w-5" /> إضافة مجموعة
+            <PlusCircle className="ml-2 h-5 w-5" /> Ajouter groupe
           </Button>
         </CardContent>
       </Card>
@@ -747,15 +747,15 @@ export function GroupManager() {
         <Card className="text-center py-10">
           <CardContent>
             <Users className="mx-auto h-16 w-16 text-muted-foreground mb-4" />
-            <p className="text-xl text-muted-foreground">لا توجد مجموعات حتى الآن.</p>
-            <p className="text-sm text-muted-foreground">ابدأ بإضافة مجموعة جديدة أعلاه أو قم باستيراد بيانات!</p>
+            <p className="text-xl text-muted-foreground">Aucun groupe pour le moment.</p>
+            <p className="text-sm text-muted-foreground">Commencez par ajouter un nouveau groupe ci-dessus ou importez des données !</p>
           </CardContent>
         </Card>
       )}
        {!dataLoaded && (
          <Card className="text-center py-10">
           <CardContent>
-             <p className="text-xl text-muted-foreground">جار تحميل البيانات...</p>
+             <p className="text-xl text-muted-foreground">Chargement des données...</p>
           </CardContent>
         </Card>
        )}
@@ -815,7 +815,7 @@ function GroupCard({ group, onAddTeam, onDeleteTeam, onAddPlayer, onDeletePlayer
     setNewPlayerPosition("Center Forward"); 
   };
 
-  const getTeamName = (teamId: string) => group.teams.find(t => t.id === teamId)?.name || 'فريق غير معروف';
+  const getTeamName = (teamId: string) => group.teams.find(t => t.id === teamId)?.name || 'Équipe inconnue';
 
   const sortedTeams = useMemo(() => {
     return [...group.teams].sort((a, b) => {
@@ -888,13 +888,13 @@ function GroupCard({ group, onAddTeam, onDeleteTeam, onAddPlayer, onDeletePlayer
             {groupScorer && groupScorer.goals > 0 && (
               <p className="text-sm text-muted-foreground mt-1 flex items-center gap-1">
                 <Target className="w-4 h-4 text-primary" />
-                <strong>هداف المجموعة:</strong> {groupScorer.name} ({groupScorer.teamName}) - {groupScorer.goals} أهداف
+                <strong>Meilleur buteur du groupe:</strong> {groupScorer.name} ({groupScorer.teamName}) - {groupScorer.goals} buts
               </p>
             )}
              {(!groupScorer || groupScorer.goals === 0) && (
                 <p className="text-sm text-muted-foreground mt-1 flex items-center gap-1">
                     <Target className="w-4 h-4 text-muted-foreground" />
-                    لم يسجل أي لاعب أهدافًا في هذه المجموعة بعد.
+                    Aucun joueur n'a encore marqué de buts dans ce groupe.
                 </p>
             )}
           </div>
@@ -906,15 +906,15 @@ function GroupCard({ group, onAddTeam, onDeleteTeam, onAddPlayer, onDeletePlayer
             </AlertDialogTrigger>
             <AlertDialogContent dir="rtl">
               <AlertDialogHeader>
-                <AlertDialogTitle>هل أنت متأكد من حذف المجموعة {group.name}؟</AlertDialogTitle>
+                <AlertDialogTitle>Êtes-vous sûr de vouloir supprimer le groupe {group.name} ?</AlertDialogTitle>
                 <AlertDialogDescription>
-                  سيؤدي هذا الإجراء إلى حذف المجموعة وجميع الفرق واللاعبين والمباريات المرتبطة بها بشكل دائم. لا يمكن التراجع عن هذا الإجراء.
+                  Cette action supprimera définitivement le groupe ainsi que toutes les équipes, joueurs et matchs associés. Cette action ne peut pas être annulée.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
-                <AlertDialogCancel>إلغاء</AlertDialogCancel>
+                <AlertDialogCancel>Annuler</AlertDialogCancel>
                 <AlertDialogAction onClick={() => onDeleteGroup(group.id)}>
-                  نعم، قم بالحذف
+                  Oui, supprimer
                 </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>
@@ -925,15 +925,15 @@ function GroupCard({ group, onAddTeam, onDeleteTeam, onAddPlayer, onDeletePlayer
         <Accordion type="single" collapsible className="w-full no-print">
           <AccordionItem value="add-team">
             <AccordionTrigger className="text-lg font-semibold text-primary hover:text-primary/80">
-                <UserPlus className="ml-2 h-5 w-5" /> إضافة فريق جديد
+                <UserPlus className="ml-2 h-5 w-5" /> Ajouter une nouvelle équipe
             </AccordionTrigger>
             <AccordionContent className="pt-2">
               <div className="flex gap-2 items-end p-1">
                 <div className="flex-grow">
-                  <Label htmlFor={`team-name-${group.id}`} className="text-muted-foreground">اسم الفريق</Label>
-                  <Input id={`team-name-${group.id}`} value={newTeamName} onChange={e => setNewTeamName(e.target.value)} placeholder="اسم الفريق" className="mt-1" />
+                  <Label htmlFor={`team-name-${group.id}`} className="text-muted-foreground">Nom de l'équipe</Label>
+                  <Input id={`team-name-${group.id}`} value={newTeamName} onChange={e => setNewTeamName(e.target.value)} placeholder="Nom de l'équipe" className="mt-1" />
                 </div>
-                <Button onClick={handleAddTeamSubmit} size="sm" className="bg-primary hover:bg-primary/90"><PlusCircle className="ml-1 h-4 w-4" />إضافة</Button>
+                <Button onClick={handleAddTeamSubmit} size="sm" className="bg-primary hover:bg-primary/90"><PlusCircle className="ml-1 h-4 w-4" />Ajouter</Button>
               </div>
             </AccordionContent>
           </AccordionItem>
@@ -942,23 +942,23 @@ function GroupCard({ group, onAddTeam, onDeleteTeam, onAddPlayer, onDeletePlayer
         {sortedTeams.length > 0 && (
           <div>
             <h3 className="text-xl font-semibold mt-6 mb-3 text-primary flex items-center gap-2">
-              <ListOrdered className="w-6 h-6" /> ترتيب المجموعة
+              <ListOrdered className="w-6 h-6" /> Classement du Groupe
             </h3>
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead className="w-[30px] text-center">#</TableHead>
-                    <TableHead className="text-right min-w-[120px]">الفريق</TableHead>
-                    <TableHead className="text-center">ن</TableHead>
-                    <TableHead className="text-center">ل</TableHead>
-                    <TableHead className="text-center">ف</TableHead>
-                    <TableHead className="text-center">ت</TableHead>
-                    <TableHead className="text-center">خ</TableHead>
-                    <TableHead className="text-center">له</TableHead>
-                    <TableHead className="text-center">عليه</TableHead>
-                    <TableHead className="text-center">ف.أ</TableHead>
-                    <TableHead className="text-center no-print w-[80px]">إجراء</TableHead>
+                    <TableHead className="text-right min-w-[120px]">Équipe</TableHead>
+                    <TableHead className="text-center">Pts</TableHead>
+                    <TableHead className="text-center">J</TableHead>
+                    <TableHead className="text-center">G</TableHead>
+                    <TableHead className="text-center">N</TableHead>
+                    <TableHead className="text-center">P</TableHead>
+                    <TableHead className="text-center">BP</TableHead>
+                    <TableHead className="text-center">BC</TableHead>
+                    <TableHead className="text-center">Diff</TableHead>
+                    <TableHead className="text-center no-print w-[80px]">Action</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -983,15 +983,15 @@ function GroupCard({ group, onAddTeam, onDeleteTeam, onAddPlayer, onDeletePlayer
                             </AlertDialogTrigger>
                             <AlertDialogContent dir="rtl">
                               <AlertDialogHeader>
-                                <AlertDialogTitle>هل أنت متأكد من حذف الفريق {team.name}؟</AlertDialogTitle>
+                                <AlertDialogTitle>Êtes-vous sûr de vouloir supprimer l'équipe {team.name} ?</AlertDialogTitle>
                                 <AlertDialogDescription>
-                                  سيؤدي هذا الإجراء إلى حذف الفريق وجميع لاعبيه والمباريات المرتبطة به بشكل دائم. لا يمكن التراجع عن هذا الإجراء.
+                                  Cette action supprimera définitivement l'équipe ainsi que tous ses joueurs et matchs associés. Cette action ne peut pas être annulée.
                                 </AlertDialogDescription>
                               </AlertDialogHeader>
                               <AlertDialogFooter>
-                                <AlertDialogCancel>إلغاء</AlertDialogCancel>
+                                <AlertDialogCancel>Annuler</AlertDialogCancel>
                                 <AlertDialogAction onClick={() => onDeleteTeam(group.id, team.id)}>
-                                  نعم، قم بالحذف
+                                  Oui, supprimer
                                 </AlertDialogAction>
                               </AlertDialogFooter>
                             </AlertDialogContent>
@@ -1004,19 +1004,19 @@ function GroupCard({ group, onAddTeam, onDeleteTeam, onAddPlayer, onDeletePlayer
             </div>
           </div>
         )}
-        {group.teams.length === 0 && <p className="text-muted-foreground text-sm mt-4">لم تتم إضافة أي فرق إلى هذه المجموعة بعد.</p>}
+        {group.teams.length === 0 && <p className="text-muted-foreground text-sm mt-4">Aucune équipe n'a encore été ajoutée à ce groupe.</p>}
 
         {sortedTeams.length > 0 && (
             <div className="mt-6">
             <h3 className="text-xl font-semibold mb-3 text-primary flex items-center gap-2 no-print">
-                <Users className="w-6 h-6" /> إدارة لاعبي الفرق
+                <Users className="w-6 h-6" /> Gérer les joueurs des équipes
             </h3>
             <Accordion type="single" collapsible className="w-full">
                 {sortedTeams.map((team) => (
                     <AccordionItem value={`players-${team.id}-${group.id}`} key={`players-${team.id}-${group.id}`} className="mb-2 border rounded-lg shadow-sm bg-background/30">
                          <AccordionTrigger className="text-primary hover:text-primary/80 text-base font-semibold px-4 py-3 no-print">
                             <div className="flex items-center gap-2">
-                                {team.name} - اللاعبون ({team.players.length})
+                                {team.name} - Joueurs ({team.players.length})
                             </div>
                         </AccordionTrigger>
                         <AccordionContent className="pt-2 px-4 pb-4 space-y-3">
@@ -1044,22 +1044,22 @@ function GroupCard({ group, onAddTeam, onDeleteTeam, onAddPlayer, onDeletePlayer
                                     {goalOptions.map(g => <SelectItem key={g} value={String(g)} className="text-xs">{g}</SelectItem>)}
                                 </SelectContent>
                                 </Select>
-                                <span className="print-only-inline text-xs w-[70px]">{player.goals} أهداف</span>
+                                <span className="print-only-inline text-xs w-[70px]">{player.goals} buts</span>
                                 
                                 <Button variant="ghost" size="icon" onClick={() => onDeletePlayer(group.id, team.id, player.id)} className="text-destructive hover:text-destructive/80 w-8 h-8 no-print">
                                 <Trash2 className="w-3.5 h-3.5" />
                                 </Button>
                             </div>
-                            )) : <p className="text-xs text-muted-foreground">لا يوجد لاعبون في هذا الفريق.</p>}
+                            )) : <p className="text-xs text-muted-foreground">Aucun joueur dans cette équipe.</p>}
                             <div className="flex gap-2 items-end pt-2 border-t mt-3 no-print">
-                            <Input value={newPlayerName} onChange={e => setNewPlayerName(e.target.value)} placeholder="اسم اللاعب" className="flex-grow text-sm h-9" />
+                            <Input value={newPlayerName} onChange={e => setNewPlayerName(e.target.value)} placeholder="Nom du joueur" className="flex-grow text-sm h-9" />
                             <Select value={newPlayerPosition} onValueChange={(pos) => setNewPlayerPosition(pos as PlayerPosition)}>
                                 <SelectTrigger className="w-[150px] text-xs h-9"><SelectValue /></SelectTrigger>
                                 <SelectContent>
                                 {playerPositions.map(pos => <SelectItem key={pos} value={pos} className="text-xs">{playerPositionTranslations[pos]}</SelectItem>)}
                                 </SelectContent>
                             </Select>
-                            <Button onClick={() => handleAddPlayerSubmit(team.id)} size="sm" className="bg-primary hover:bg-primary/90 h-9"><PlusCircle className="ml-1 h-4 w-4" />إضافة لاعب</Button>
+                            <Button onClick={() => handleAddPlayerSubmit(team.id)} size="sm" className="bg-primary hover:bg-primary/90 h-9"><PlusCircle className="ml-1 h-4 w-4" />Ajouter joueur</Button>
                             </div>
                         </AccordionContent>
                     </AccordionItem>
@@ -1073,10 +1073,10 @@ function GroupCard({ group, onAddTeam, onDeleteTeam, onAddPlayer, onDeletePlayer
 
         <div>
           <div className="flex justify-between items-center mb-3">
-            <h3 className="text-xl font-semibold text-primary flex items-center gap-2"><Swords className="w-6 h-6" /> المباريات</h3>
+            <h3 className="text-xl font-semibold text-primary flex items-center gap-2"><Swords className="w-6 h-6" /> Matchs</h3>
             {group.teams.length >= 2 && group.matches.length === 0 && (
               <Button onClick={() => onGenerateMatches(group.id)} size="sm" className="bg-accent hover:bg-accent/90 text-accent-foreground no-print">
-                <PlusCircle className="ml-2 h-4 w-4" /> إنشاء المباريات
+                <PlusCircle className="ml-2 h-4 w-4" /> Générer les matchs
               </Button>
             )}
           </div>
@@ -1096,7 +1096,7 @@ function GroupCard({ group, onAddTeam, onDeleteTeam, onAddPlayer, onDeletePlayer
                   {editingMatchId === match.id ? (
                     <div className="space-y-2 no-print">
                         <div className="flex items-center gap-2">
-                            <Label htmlFor={`scoreA-${match.id}`} className="text-xs whitespace-nowrap">أهداف {getTeamName(match.teamAId)}:</Label>
+                            <Label htmlFor={`scoreA-${match.id}`} className="text-xs whitespace-nowrap">Buts {getTeamName(match.teamAId)}:</Label>
                             <Input 
                                 id={`scoreA-${match.id}`} 
                                 type="number" 
@@ -1105,7 +1105,7 @@ function GroupCard({ group, onAddTeam, onDeleteTeam, onAddPlayer, onDeletePlayer
                                 className="w-16 h-8 text-xs" 
                                 min="0"
                             />
-                             <Label htmlFor={`scoreB-${match.id}`} className="text-xs whitespace-nowrap">أهداف {getTeamName(match.teamBId)}:</Label>
+                             <Label htmlFor={`scoreB-${match.id}`} className="text-xs whitespace-nowrap">Buts {getTeamName(match.teamBId)}:</Label>
                              <Input 
                                 id={`scoreB-${match.id}`} 
                                 type="number" 
@@ -1116,22 +1116,22 @@ function GroupCard({ group, onAddTeam, onDeleteTeam, onAddPlayer, onDeletePlayer
                             />
                         </div>
                         <Button onClick={() => handleMatchScoreSave(match.id)} size="sm" className="w-full">
-                            <Save className="ml-2 h-4 w-4" /> حفظ النتيجة
+                            <Save className="ml-2 h-4 w-4" /> Enregistrer le score
                         </Button>
                     </div>
                   ) : (
                     <div className="match-score-display">
                       <div className="text-xs text-muted-foreground">
-                        النتيجة: {getTeamName(match.teamAId)} {match.teamAScoreActual ?? 0} - {match.teamBScoreActual ?? 0} {getTeamName(match.teamBId)}
+                        Score: {getTeamName(match.teamAId)} {match.teamAScoreActual ?? 0} - {match.teamBScoreActual ?? 0} {getTeamName(match.teamBId)}
                       </div>
                       {match.teamAResult ? (
                         <div className="mt-1 text-xs text-muted-foreground">
-                          <p>({matchResultTranslations[match.teamAResult]} لـ {getTeamName(match.teamAId)})</p>
-                          <p>نقاط {getTeamName(match.teamAId)}: {match.teamAResult === 'Win' ? 3 : match.teamAResult === 'Draw' ? 1 : 0}</p>
-                          <p>نقاط {getTeamName(match.teamBId)}: {match.teamAResult === 'Loss' ? 3 : match.teamAResult === 'Draw' ? 1 : 0}</p>
+                          <p>({matchResultTranslations[match.teamAResult]} pour {getTeamName(match.teamAId)})</p>
+                          <p>Points {getTeamName(match.teamAId)}: {match.teamAResult === 'Win' ? 3 : match.teamAResult === 'Draw' ? 1 : 0}</p>
+                          <p>Points {getTeamName(match.teamBId)}: {match.teamAResult === 'Loss' ? 3 : match.teamAResult === 'Draw' ? 1 : 0}</p>
                         </div>
                       ): (
-                        <p className="text-xs text-muted-foreground mt-1">لم يتم تسجيل نتيجة المباراة بعد.</p>
+                        <p className="text-xs text-muted-foreground mt-1">Le score du match n'a pas encore été enregistré.</p>
                       )}
                     </div>
                   )}
@@ -1140,13 +1140,13 @@ function GroupCard({ group, onAddTeam, onDeleteTeam, onAddPlayer, onDeletePlayer
             </div>
           ) : (
             <p className="text-muted-foreground text-sm">
-              {group.teams.length < 2 ? "أضف فريقين على الأقل لإنشاء المباريات." : "لم يتم إنشاء المباريات بعد."}
+              {group.teams.length < 2 ? "Ajoutez au moins deux équipes pour générer des matchs." : "Aucun match n'a encore été généré."}
             </p>
           )}
         </div>
       </CardContent>
       <CardFooter className="border-t pt-4">
-         <p className="text-xs text-muted-foreground w-full text-center">مجموعة: {group.name}</p>
+         <p className="text-xs text-muted-foreground w-full text-center">Groupe: {group.name}</p>
       </CardFooter>
     </Card>
   );

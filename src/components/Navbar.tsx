@@ -23,18 +23,18 @@ export function Navbar() {
       <div className="container mx-auto px-4 py-3 flex items-center justify-between">
         <Link href="/" className="flex items-center gap-3 text-2xl font-headline hover:opacity-90 transition-opacity">
           <Trophy className="h-8 w-8 text-accent" />
-          <span>دورة التحدي</span>
+          <span>Dorra Challenge</span>
         </Link>
         <div className="flex items-center gap-4">
           <Link href="/" className="flex items-center gap-1.5 text-base font-medium hover:text-accent transition-colors">
             <Home className="h-5 w-5" />
-            الرئيسية
+            Accueil
           </Link>
           <Link href="/tournament" className="flex items-center gap-1.5 text-base font-medium hover:text-accent transition-colors">
-            البطولات
+            Tournois
           </Link>
           {loading ? (
-            <div className="text-sm">جار التحميل...</div>
+            <div className="text-sm">Chargement...</div>
           ) : user ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -50,7 +50,7 @@ export function Navbar() {
               <DropdownMenuContent className="w-56" align="end" forceMount>
                 <DropdownMenuLabel className="font-normal">
                   <div className="flex flex-col space-y-1">
-                    <p className="text-sm font-medium leading-none">{user.displayName || "المستخدم"}</p>
+                    <p className="text-sm font-medium leading-none">{user.displayName || "Utilisateur"}</p>
                     <p className="text-xs leading-none text-muted-foreground">
                       {user.email}
                     </p>
@@ -59,14 +59,14 @@ export function Navbar() {
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={signOutUser} className="cursor-pointer text-destructive focus:text-destructive focus:bg-destructive/10">
                   <LogOut className="ml-2 h-4 w-4" />
-                  تسجيل الخروج
+                  Se déconnecter
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           ) : (
             <Button onClick={signInWithGoogle} variant="secondary" size="sm" className="bg-accent hover:bg-accent/90 text-accent-foreground">
               <LogIn className="ml-2 h-4 w-4" />
-              تسجيل الدخول
+              Se connecter
             </Button>
           )}
         </div>
