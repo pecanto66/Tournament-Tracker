@@ -39,7 +39,7 @@ export default function LoginPage() {
     <div className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-br from-primary/20 via-background to-accent/20 p-6 text-center">
       <div className="bg-card p-8 sm:p-12 rounded-xl shadow-2xl max-w-md w-full">
         <Image 
-            src="https://placehold.co/150x150.png" 
+            src="https://drive.google.com/file/d/10urDu43fgX0_PBwx59Lmb1NaC4FW5baz/view?usp=sharing" 
             alt="Dorra Challenge Logo" 
             width={120} 
             height={120} 
