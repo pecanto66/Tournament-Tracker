@@ -1,22 +1,31 @@
-import { Button } from "@/components/ui/button";
-import Link from "next/link";
-import { ArrowLeft } from "lucide-react"; // For RTL, ArrowLeft points "forward"
+
+"use client";
+
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { useAuth } from '@/contexts/AuthContext';
+import { Loader2 } from 'lucide-react'; // For a loading spinner
 
 export default function HomePage() {
+  const { user, loading } = useAuth();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!loading) {
+      if (user) {
+        router.replace('/tournament'); // Use replace to avoid back button to this loading page
+      } else {
+        router.replace('/login');
+      }
+    }
+  }, [user, loading, router]);
+
+  // Display a loading indicator while checking auth state
+  // Or, if loading completes and redirects haven't happened yet
   return (
     <div className="container mx-auto px-4 py-8 flex flex-col items-center justify-center min-h-[calc(100vh-10rem)] text-center">
-      <h1 className="text-5xl font-headline font-bold text-primary mb-6">
-        مرحباً بك في دورة التحدي!
-      </h1>
-      <p className="text-xl text-foreground mb-10 max-w-2xl">
-        نظّم بطولات كرة القدم بسهولة. قم بإنشاء المجموعات، وإضافة الفرق، وتتبع المباريات والنتائج، وإدارة إحصائيات اللاعبين في مكان واحد.
-      </p>
-      <Button asChild size="lg" className="bg-accent hover:bg-accent/90 text-accent-foreground font-semibold">
-        <Link href="/tournament">
-          ابدأ تنظيم البطولة
-          <ArrowLeft className="mr-2 h-5 w-5" />
-        </Link>
-      </Button>
+      <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
+      <p className="text-xl text-muted-foreground">Chargement de l'application...</p>
     </div>
   );
 }

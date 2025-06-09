@@ -10,7 +10,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
-import { PlusCircle, Users, UserPlus, Trash2, Edit3, Save, XCircle, Swords, Target, Trophy as TrophyIcon, Download, RefreshCcw, Upload, Printer, ListOrdered, CloudUpload } from 'lucide-react';
+import { PlusCircle, Users, UserPlus, Trash2, Edit3, Save, XCircle, Swords, Target, Trophy as TrophyIcon, Download, RefreshCcw, Upload, Printer, ListOrdered, CloudUpload, Loader2 } from 'lucide-react';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import {
   AlertDialog,
@@ -26,7 +26,7 @@ import {
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from '@/contexts/AuthContext';
-import { db } from '@/lib/firebase';
+import { db } from '@/lib/firebase'; // Assuming db is correctly exported from firebase config
 import { doc, setDoc, getDoc } from 'firebase/firestore';
 
 
@@ -105,25 +105,33 @@ export function GroupManager() {
   const [tournamentScorer, setTournamentScorer] = useState<ScorerInfo | null>(null);
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading } = useAuth(); // authLoading comes from AuthContext
   const dataLoadedRef = useRef(false); 
   const [isSavingToCloud, setIsSavingToCloud] = useState(false);
+  const [isLoadingFromCloud, setIsLoadingFromCloud] = useState(true); // New state for cloud loading
 
-  const FIRESTORE_COLLECTION_NAME = "fnuc5TtzvSUS7TcIYztscye7TrP2";
+  // This is the Firestore collection name for storing each user's tournament data.
+  // Each document in this collection will be named with the user's UID.
+  const FIRESTORE_USER_DATA_COLLECTION_NAME = "fnuc5TtzvSUS7TcIYztscye7TrP2";
 
 
   // Load data effect
   useEffect(() => {
     const loadData = async () => {
-      if (authLoading) return; // Wait for auth state to be determined
+      setIsLoadingFromCloud(true); // Start loading
+      if (authLoading) { // Wait for Firebase auth state to be known
+        setIsLoadingFromCloud(false); // Not actively loading cloud data if auth is still resolving
+        return;
+      }
 
       if (user) {
         // Try loading from Firestore first
-        const userDocRef = doc(db, FIRESTORE_COLLECTION_NAME, user.uid);
+        const userDocRef = doc(db, FIRESTORE_USER_DATA_COLLECTION_NAME, user.uid);
         try {
           const docSnap = await getDoc(userDocRef);
           if (docSnap.exists()) {
             const data = docSnap.data();
+            // Assuming tournament data is stored in a field, e.g., 'tournamentGroupsData'
             if (data && data.tournamentGroupsData && Array.isArray(data.tournamentGroupsData)) {
               let parsedGroups = data.tournamentGroupsData as Group[];
               // Apply migration/validation similar to localStorage loading
@@ -164,13 +172,20 @@ export function GroupManager() {
               })));
               toast({ title: "Info", description: "Données chargées depuis le cloud." });
               dataLoadedRef.current = true;
+              setIsLoadingFromCloud(false);
               return; // Data loaded from Firestore, skip localStorage
+            } else {
+               toast({ title: "Info", description: "Aucune donnée de tournoi trouvée sur le cloud. Vérification du stockage local." });
             }
+          } else {
+             toast({ title: "Info", description: "Aucun document utilisateur trouvé sur le cloud pour les données de tournoi. Vérification du stockage local." });
           }
         } catch (error) {
           console.error("Error loading data from Firestore:", error);
           toast({ title: "Erreur Cloud", description: "Impossible de charger les données depuis le cloud. Vérification du stockage local.", variant: "destructive" });
         }
+      } else {
+         toast({ title: "Info", description: "Utilisateur non connecté. Vérification du stockage local." });
       }
 
       // Fallback to localStorage if no user or Firestore load failed/empty
@@ -217,6 +232,7 @@ export function GroupManager() {
                   ...group,
                   teams: calculateTeamStats(group.teams, group.matches)
                })));
+               toast({ title: "Info", description: "Données chargées depuis le stockage local." });
             } else {
               console.error("Invalid data structure in localStorage after migration. Resetting.");
               localStorage.removeItem('tournamentGroups');
@@ -231,6 +247,7 @@ export function GroupManager() {
         }
       }
       dataLoadedRef.current = true;
+      setIsLoadingFromCloud(false); // Finish loading
     };
 
     loadData();
@@ -239,7 +256,7 @@ export function GroupManager() {
 
   // Save to localStorage and update scorer effect
   useEffect(() => {
-    if (!dataLoadedRef.current) return; 
+    if (!dataLoadedRef.current || isLoadingFromCloud) return; // Don't save if initial load (especially from cloud) isn't complete
 
     localStorage.setItem('tournamentGroups', JSON.stringify(groups));
 
@@ -270,7 +287,7 @@ export function GroupManager() {
         setTournamentScorer(topScorer);
     }
 
-  }, [groups]);
+  }, [groups, isLoadingFromCloud]);
 
 
   const handleAddGroup = () => {
@@ -510,8 +527,9 @@ export function GroupManager() {
     }
     setIsSavingToCloud(true);
     try {
-      const userDocRef = doc(db, FIRESTORE_COLLECTION_NAME, user.uid);
-      await setDoc(userDocRef, { tournamentGroupsData: groups });
+      const userDocRef = doc(db, FIRESTORE_USER_DATA_COLLECTION_NAME, user.uid);
+      // Storing the groups array inside a field, e.g., 'tournamentGroupsData'
+      await setDoc(userDocRef, { tournamentGroupsData: groups }, { merge: true }); // Use merge if you want to update fields without overwriting the whole doc
       toast({ title: "Succès", description: "Données sauvegardées sur le cloud !" });
     } catch (error) {
       console.error("Error saving data to Firestore:", error);
@@ -639,6 +657,15 @@ export function GroupManager() {
   };
 
 
+  if (authLoading || isLoadingFromCloud) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[calc(100vh-20rem)]">
+        <Loader2 className="h-10 w-10 animate-spin text-primary" />
+        <p className="mt-4 text-muted-foreground">Chargement des données du tournoi...</p>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-8">
       <Card className="shadow-lg border-primary border-2">
@@ -686,7 +713,7 @@ export function GroupManager() {
           </Button>
           {user && (
             <Button onClick={handleSaveToFirestore} variant="outline" className="w-full" disabled={isSavingToCloud || authLoading}>
-              <CloudUpload className="ml-2 h-5 w-5" /> 
+              {isSavingToCloud ? <Loader2 className="ml-2 h-5 w-5 animate-spin" /> : <CloudUpload className="ml-2 h-5 w-5" /> }
               {isSavingToCloud ? "Sauvegarde..." : "Sauvegarder sur le Cloud"}
             </Button>
           )}
@@ -742,7 +769,7 @@ export function GroupManager() {
         </CardContent>
       </Card>
 
-      {groups.length === 0 && dataLoadedRef.current && (
+      {groups.length === 0 && dataLoadedRef.current && !isLoadingFromCloud && (
         <Card className="text-center py-10">
           <CardContent>
             <Users className="mx-auto h-16 w-16 text-muted-foreground mb-4" />
@@ -751,15 +778,7 @@ export function GroupManager() {
           </CardContent>
         </Card>
       )}
-       {!dataLoadedRef.current && (
-         <Card className="text-center py-10">
-          <CardContent>
-             <p className="text-xl text-muted-foreground">Chargement des données...</p>
-          </CardContent>
-        </Card>
-       )}
-
-
+      
       <div className="grid grid-cols-1 md:grid-cols-1 lg:grid-cols-2 gap-6">
         {groups.map(group => (
           <GroupCard
@@ -1150,3 +1169,4 @@ function GroupCard({ group, onAddTeam, onDeleteTeam, onAddPlayer, onDeletePlayer
     </Card>
   );
 }
+
