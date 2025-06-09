@@ -13,14 +13,8 @@ import {
 } from 'firebase/auth';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { useToast } from "@/hooks/use-toast";
-import type { SignInFormValues, SignUpFormValues } from '@/types/auth'; // Assuming these types will be created
+import type { SignInFormValues, SignUpFormValues, UserProfile } from '@/types/auth';
 
-interface UserProfile {
-  uid: string;
-  name: string;
-  email: string;
-  role: 'user' | 'admin'; // Example roles
-}
 
 interface AuthContextType {
   user: User | null;
@@ -49,9 +43,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (docSnap.exists()) {
           setUserProfile(docSnap.data() as UserProfile);
         } else {
-          // This case might happen if user exists in Auth but not in Firestore 'users'
-          // Potentially create it or handle as an anomaly
-           setUserProfile({ uid: currentUser.uid, name: currentUser.displayName || "", email: currentUser.email || "", role: "user"});
+           // This case might happen if user exists in Auth but not in Firestore 'users'
+           // Potentially create it or handle as an anomaly if sign-up didn't complete for Firestore.
+           // For now, if display name is available, use it.
+           const fallbackProfile: UserProfile = { 
+             uid: currentUser.uid, 
+             name: currentUser.displayName || "", 
+             email: currentUser.email || "", 
+             role: "user"
+           };
+          setUserProfile(fallbackProfile);
         }
       } else {
         setUserProfile(null);
@@ -68,9 +69,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       toast({ title: "Succès", description: "Connexion réussie !" });
       // User state and profile will be updated by onAuthStateChanged
     } catch (error: any) {
-      console.error("Error signing in: ", error);
-      toast({ title: "Erreur de connexion", description: error.message, variant: "destructive" });
-      throw error; // Re-throw to handle in form
+      console.error("Error signing in: ", error.code, error.message);
+      let errorMessage = "Une erreur s'est produite lors de la connexion.";
+      if (error.code === 'auth/invalid-credential' || 
+          error.code === 'auth/user-not-found' || 
+          error.code === 'auth/wrong-password') {
+        errorMessage = "Adresse e-mail ou mot de passe incorrect. Veuillez vérifier vos informations et réessayer.";
+      } else if (error.code === 'auth/invalid-email') {
+        errorMessage = "Le format de l'adresse e-mail est invalide.";
+      } else if (error.code === 'auth/user-disabled') {
+        errorMessage = "Ce compte utilisateur a été désactivé.";
+      } else {
+        errorMessage = "Impossible de se connecter. Veuillez réessayer plus tard."; // Generic fallback for other errors
+      }
+      toast({ title: "Erreur de connexion", description: errorMessage, variant: "destructive" });
+      throw new Error(errorMessage); // Re-throw the user-friendly message to handle in form
     } finally {
       setLoading(false);
     }
@@ -95,20 +108,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       };
       await setDoc(userDocRef, profileData);
       
-      setUserProfile(profileData); // Immediately update local profile state
+      // Manually set user and profile here to ensure UI updates immediately
+      // as onAuthStateChanged might have a slight delay
+      setUser(newUser); 
+      setUserProfile(profileData);
 
       toast({ title: "Succès", description: "Inscription réussie ! Vous êtes maintenant connecté." });
       // User state will be updated by onAuthStateChanged, redirect will occur on page
     } catch (error: any) {
-      console.error("Error signing up: ", error);
-      let errorMessage = error.message;
+      console.error("Error signing up: ", error.code, error.message);
+      let errorMessage = "Une erreur s'est produite lors de l'inscription.";
       if (error.code === 'auth/email-already-in-use') {
         errorMessage = 'Cette adresse e-mail est déjà utilisée.';
       } else if (error.code === 'auth/weak-password') {
         errorMessage = 'Le mot de passe doit contenir au moins 6 caractères.';
+      } else if (error.code === 'auth/invalid-email') {
+        errorMessage = "Le format de l'adresse e-mail est invalide.";
+      } else {
+        errorMessage = "Impossible de créer le compte. Veuillez réessayer plus tard."; // Generic fallback
       }
       toast({ title: "Erreur d'inscription", description: errorMessage, variant: "destructive" });
-      throw error; // Re-throw to handle in form
+      throw new Error(errorMessage); // Re-throw user-friendly message
     } finally {
       setLoading(false);
     }
@@ -122,7 +142,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       toast({ title: "Déconnexion", description: "Vous avez été déconnecté." });
     } catch (error: any) {
       console.error("Error signing out: ", error);
-      toast({ title: "Erreur de déconnexion", description: error.message, variant: "destructive" });
+      toast({ title: "Erreur de déconnexion", description: "Une erreur s'est produite lors de la déconnexion.", variant: "destructive" });
     } finally {
       setLoading(false);
     }
