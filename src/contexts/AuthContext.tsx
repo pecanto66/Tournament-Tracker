@@ -45,7 +45,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         } else {
            // This case might happen if user exists in Auth but not in Firestore 'users'
            // Potentially create it or handle as an anomaly if sign-up didn't complete for Firestore.
-           // For now, if display name is available, use it.
            const fallbackProfile: UserProfile = { 
              uid: currentUser.uid, 
              name: currentUser.displayName || "", 
@@ -69,7 +68,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       toast({ title: "Succès", description: "Connexion réussie !" });
       // User state and profile will be updated by onAuthStateChanged
     } catch (error: any) {
-      console.error("Error signing in: ", error.code, error.message);
+      // console.error("Error signing in: ", error.code, error.message); // Removed this line
       let errorMessage = "Une erreur s'est produite lors de la connexion.";
       if (error.code === 'auth/invalid-credential' || 
           error.code === 'auth/user-not-found' || 
