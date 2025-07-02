@@ -25,9 +25,6 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
-import { useAuth } from '@/contexts/AuthContext';
-import { db } from '@/lib/firebase'; // Assuming db is correctly exported from firebase config
-import { doc, setDoc, getDoc } from 'firebase/firestore';
 
 
 type ScorerInfo = Player & { teamName: string; groupName?: string };
@@ -105,158 +102,75 @@ export function GroupManager() {
   const [tournamentScorer, setTournamentScorer] = useState<ScorerInfo | null>(null);
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const { user, loading: authLoading } = useAuth(); // authLoading comes from AuthContext
   const dataLoadedRef = useRef(false); 
-  const [isSavingToCloud, setIsSavingToCloud] = useState(false);
-  const [isLoadingFromCloud, setIsLoadingFromCloud] = useState(true); // New state for cloud loading
-
-  // This is the Firestore collection name for storing each user's tournament data.
-  // Each document in this collection will be named with the user's UID.
-  const FIRESTORE_USER_DATA_COLLECTION_NAME = "fnuc5TtzvSUS7TcIYztscye7TrP2";
 
 
   // Load data effect
   useEffect(() => {
-    const loadData = async () => {
-      setIsLoadingFromCloud(true); // Start loading
-      if (authLoading) { // Wait for Firebase auth state to be known
-        setIsLoadingFromCloud(false); // Not actively loading cloud data if auth is still resolving
-        return;
-      }
-
-      if (user) {
-        // Try loading from Firestore first
-        const userDocRef = doc(db, FIRESTORE_USER_DATA_COLLECTION_NAME, user.uid);
-        try {
-          const docSnap = await getDoc(userDocRef);
-          if (docSnap.exists()) {
-            const data = docSnap.data();
-            // Assuming tournament data is stored in a field, e.g., 'tournamentGroupsData'
-            if (data && data.tournamentGroupsData && Array.isArray(data.tournamentGroupsData)) {
-              let parsedGroups = data.tournamentGroupsData as Group[];
-              // Apply migration/validation similar to localStorage loading
-              parsedGroups = parsedGroups.map(group => ({
-                ...group,
-                id: group.id || crypto.randomUUID(),
-                name: group.name || "Groupe sans nom",
-                teams: Array.isArray(group.teams) ? group.teams.map(team => ({
-                  ...team,
-                  id: team.id || crypto.randomUUID(),
-                  name: team.name || "Équipe sans nom",
-                  players: Array.isArray(team.players) ? team.players.map(player => ({
-                    ...player,
-                    id: player.id || crypto.randomUUID(),
-                    name: player.name || "Joueur sans nom",
-                    position: player.position || "Center Forward",
-                    goals: typeof player.goals === 'number' ? player.goals : 0,
-                  })) : [],
-                  points: typeof team.points === 'number' ? team.points : 0,
-                  played: typeof team.played === 'number' ? team.played : 0,
-                  won: typeof team.won === 'number' ? team.won : 0,
-                  drawn: typeof team.drawn === 'number' ? team.drawn : 0,
-                  lost: typeof team.lost === 'number' ? team.lost : 0,
-                  goalsFor: typeof team.goalsFor === 'number' ? team.goalsFor : 0,
-                  goalsAgainst: typeof team.goalsAgainst === 'number' ? team.goalsAgainst : 0,
-                  goalDifference: typeof team.goalDifference === 'number' ? team.goalDifference : 0,
-                })) : [],
-                matches: Array.isArray(group.matches) ? group.matches.map(match => ({
-                    ...match,
-                    id: match.id || crypto.randomUUID(),
-                    teamAScoreActual: match.teamAScoreActual ?? 0,
-                    teamBScoreActual: match.teamBScoreActual ?? 0,
-                })) : [],
-              }));
-              setGroups(parsedGroups.map(group => ({
+    const savedGroups = localStorage.getItem('tournamentGroups');
+    if (savedGroups) {
+      try {
+        let parsedGroups = JSON.parse(savedGroups) as Group[];
+        if (Array.isArray(parsedGroups)) {
+          parsedGroups = parsedGroups.map(group => ({
+            ...group,
+            id: group.id || crypto.randomUUID(),
+            name: group.name || "Groupe sans nom",
+            teams: Array.isArray(group.teams) ? group.teams.map(team => ({
+              ...team,
+              id: team.id || crypto.randomUUID(),
+              name: team.name || "Équipe sans nom",
+              players: Array.isArray(team.players) ? team.players.map(player => ({
+                ...player,
+                id: player.id || crypto.randomUUID(),
+                name: player.name || "Joueur sans nom",
+                position: player.position || "Center Forward",
+                goals: typeof player.goals === 'number' ? player.goals : 0,
+              })) : [],
+              points: typeof team.points === 'number' ? team.points : 0,
+              played: typeof team.played === 'number' ? team.played : 0,
+              won: typeof team.won === 'number' ? team.won : 0,
+              drawn: typeof team.drawn === 'number' ? team.drawn : 0,
+              lost: typeof team.lost === 'number' ? team.lost : 0,
+              goalsFor: typeof team.goalsFor === 'number' ? team.goalsFor : 0,
+              goalsAgainst: typeof team.goalsAgainst === 'number' ? team.goalsAgainst : 0,
+              goalDifference: typeof team.goalDifference === 'number' ? team.goalDifference : 0,
+            })) : [],
+            matches: Array.isArray(group.matches) ? group.matches.map(match => ({
+                ...match,
+                id: match.id || crypto.randomUUID(),
+                teamAScoreActual: match.teamAScoreActual ?? 0,
+                teamBScoreActual: match.teamBScoreActual ?? 0,
+            })) : [],
+          }));
+          
+          const validatedGroups = parsedGroups.filter(group => group.id && group.name && Array.isArray(group.teams) && Array.isArray(group.matches));
+          if (validatedGroups.length === parsedGroups.length) {
+              setGroups(validatedGroups.map(group => ({
                 ...group,
                 teams: calculateTeamStats(group.teams, group.matches)
               })));
-              toast({ title: "Info", description: "Données chargées depuis le cloud." });
-              dataLoadedRef.current = true;
-              setIsLoadingFromCloud(false);
-              return; // Data loaded from Firestore, skip localStorage
-            } else {
-               toast({ title: "Info", description: "Aucune donnée de tournoi trouvée sur le cloud. Vérification du stockage local." });
-            }
+              toast({ title: "Info", description: "Données chargées depuis le stockage local." });
           } else {
-             toast({ title: "Info", description: "Aucun document utilisateur trouvé sur le cloud pour les données de tournoi. Vérification du stockage local." });
-          }
-        } catch (error) {
-          console.error("Error loading data from Firestore:", error);
-          toast({ title: "Erreur Cloud", description: "Impossible de charger les données depuis le cloud. Vérification du stockage local.", variant: "destructive" });
-        }
-      } else {
-         toast({ title: "Info", description: "Utilisateur non connecté. Vérification du stockage local." });
-      }
-
-      // Fallback to localStorage if no user or Firestore load failed/empty
-      const savedGroups = localStorage.getItem('tournamentGroups');
-      if (savedGroups) {
-        try {
-          let parsedGroups = JSON.parse(savedGroups) as Group[];
-          if (Array.isArray(parsedGroups)) {
-            parsedGroups = parsedGroups.map(group => ({
-              ...group,
-              id: group.id || crypto.randomUUID(),
-              name: group.name || "Groupe sans nom",
-              teams: Array.isArray(group.teams) ? group.teams.map(team => ({
-                ...team,
-                id: team.id || crypto.randomUUID(),
-                name: team.name || "Équipe sans nom",
-                players: Array.isArray(team.players) ? team.players.map(player => ({
-                  ...player,
-                  id: player.id || crypto.randomUUID(),
-                  name: player.name || "Joueur sans nom",
-                  position: player.position || "Center Forward",
-                  goals: typeof player.goals === 'number' ? player.goals : 0,
-                })) : [],
-                points: typeof team.points === 'number' ? team.points : 0,
-                played: typeof team.played === 'number' ? team.played : 0,
-                won: typeof team.won === 'number' ? team.won : 0,
-                drawn: typeof team.drawn === 'number' ? team.drawn : 0,
-                lost: typeof team.lost === 'number' ? team.lost : 0,
-                goalsFor: typeof team.goalsFor === 'number' ? team.goalsFor : 0,
-                goalsAgainst: typeof team.goalsAgainst === 'number' ? team.goalsAgainst : 0,
-                goalDifference: typeof team.goalDifference === 'number' ? team.goalDifference : 0,
-              })) : [],
-              matches: Array.isArray(group.matches) ? group.matches.map(match => ({
-                  ...match,
-                  id: match.id || crypto.randomUUID(),
-                  teamAScoreActual: match.teamAScoreActual ?? 0,
-                  teamBScoreActual: match.teamBScoreActual ?? 0,
-              })) : [],
-            }));
-            
-            const validatedGroups = parsedGroups.filter(group => group.id && group.name && Array.isArray(group.teams) && Array.isArray(group.matches));
-            if (validatedGroups.length === parsedGroups.length) {
-               setGroups(validatedGroups.map(group => ({
-                  ...group,
-                  teams: calculateTeamStats(group.teams, group.matches)
-               })));
-               toast({ title: "Info", description: "Données chargées depuis le stockage local." });
-            } else {
-              console.error("Invalid data structure in localStorage after migration. Resetting.");
-              localStorage.removeItem('tournamentGroups');
-            }
-          } else {
-            console.error("Invalid data structure in localStorage. Resetting.");
+            console.error("Invalid data structure in localStorage after migration. Resetting.");
             localStorage.removeItem('tournamentGroups');
           }
-        } catch (error) {
-          console.error("Failed to parse or migrate groups from localStorage:", error);
-          localStorage.removeItem('tournamentGroups'); 
+        } else {
+          console.error("Invalid data structure in localStorage. Resetting.");
+          localStorage.removeItem('tournamentGroups');
         }
+      } catch (error) {
+        console.error("Failed to parse or migrate groups from localStorage:", error);
+        localStorage.removeItem('tournamentGroups'); 
       }
-      dataLoadedRef.current = true;
-      setIsLoadingFromCloud(false); // Finish loading
-    };
-
-    loadData();
-  }, [user, authLoading, toast]);
+    }
+    dataLoadedRef.current = true;
+  }, [toast]);
 
 
   // Save to localStorage and update scorer effect
   useEffect(() => {
-    if (!dataLoadedRef.current || isLoadingFromCloud) return; // Don't save if initial load (especially from cloud) isn't complete
+    if (!dataLoadedRef.current) return; // Don't save if initial load isn't complete
 
     localStorage.setItem('tournamentGroups', JSON.stringify(groups));
 
@@ -271,11 +185,11 @@ export function GroupManager() {
             topScorer = { ...player, teamName: team.name, groupName: group.name };
           } else if (player.goals === maxGoals && player.goals > 0) {
             if (topScorer && typeof topScorer.name === 'string' && typeof player.name === 'string') {
-                 if (!topScorer.name.includes(player.name)) {
+                  if (!topScorer.name.includes(player.name)) {
                     topScorer.name += ` & ${player.name}`;
-                 }
+                  }
             } else {
-                 topScorer = { ...player, teamName: team.name, groupName: group.name };
+                  topScorer = { ...player, teamName: team.name, groupName: group.name };
             }
           }
         });
@@ -287,7 +201,7 @@ export function GroupManager() {
         setTournamentScorer(topScorer);
     }
 
-  }, [groups, isLoadingFromCloud]);
+  }, [groups]);
 
 
   const handleAddGroup = () => {
@@ -362,7 +276,7 @@ export function GroupManager() {
 
 
   const handleAddPlayer = (groupId: string, teamId: string, playerName: string, position: PlayerPosition) => {
-     if (!playerName.trim()) {
+      if (!playerName.trim()) {
       toast({ title: "Erreur", description: "Veuillez entrer un nom pour le joueur.", variant: "destructive" });
       return;
     }
@@ -373,8 +287,8 @@ export function GroupManager() {
           teams: group.teams.map(team => {
             if (team.id === teamId) {
               if (team.players.find(p => p.name.toLowerCase() === playerName.toLowerCase())) {
-                 toast({ title: "Erreur", description: `Le joueur "${playerName}" existe déjà dans cette équipe.`, variant: "destructive" });
-                 return team;
+                  toast({ title: "Erreur", description: `Le joueur "${playerName}" existe déjà dans cette équipe.`, variant: "destructive" });
+                  return team;
               }
               const newPlayer: Player = { id: crypto.randomUUID(), name: playerName, position, goals: 0 };
               return { ...team, players: [...team.players, newPlayer] };
@@ -520,31 +434,12 @@ export function GroupManager() {
     }
   };
 
-  const handleSaveToFirestore = async () => {
-    if (!user) {
-      toast({ title: "Erreur", description: "Vous devez être connecté pour sauvegarder sur le cloud.", variant: "destructive" });
-      return;
-    }
-    setIsSavingToCloud(true);
-    try {
-      const userDocRef = doc(db, FIRESTORE_USER_DATA_COLLECTION_NAME, user.uid);
-      // Storing the groups array inside a field, e.g., 'tournamentGroupsData'
-      await setDoc(userDocRef, { tournamentGroupsData: groups }, { merge: true }); // Use merge if you want to update fields without overwriting the whole doc
-      toast({ title: "Succès", description: "Données sauvegardées sur le cloud !" });
-    } catch (error) {
-      console.error("Error saving data to Firestore:", error);
-      toast({ title: "Erreur Cloud", description: "Échec de la sauvegarde des données sur le cloud.", variant: "destructive" });
-    } finally {
-      setIsSavingToCloud(false);
-    }
-  };
-
   const handleResetData = () => {
     setGroups([]);
     setNewGroupName('');
     setTournamentScorer(null);
     localStorage.removeItem('tournamentGroups'); 
-    toast({ title: "Succès", description: "Toutes les données du tournoi ont été réinitialisées (localement).", variant: "default" });
+    toast({ title: "Succès", description: "Toutes les données du tournoi ont été réinitialisées.", variant: "default" });
   };
 
   const handleImportTrigger = () => {
@@ -571,7 +466,7 @@ export function GroupManager() {
         if (typeof text === 'string') {
           let importedGroups = JSON.parse(text) as Group[];
           if (Array.isArray(importedGroups)) {
-             importedGroups = importedGroups.map(group => ({ 
+              importedGroups = importedGroups.map(group => ({ 
                 ...group,
                 id: group.id || crypto.randomUUID(),
                 name: group.name || "Groupe sans nom",
@@ -657,15 +552,6 @@ export function GroupManager() {
   };
 
 
-  if (authLoading || isLoadingFromCloud) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[calc(100vh-20rem)]">
-        <Loader2 className="h-10 w-10 animate-spin text-primary" />
-        <p className="mt-4 text-muted-foreground">Chargement des données du tournoi...</p>
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-8">
       <Card className="shadow-lg border-primary border-2">
@@ -693,7 +579,7 @@ export function GroupManager() {
       <Card className="shadow-lg border-primary border-2 no-print">
         <CardHeader>
           <CardTitle className="text-2xl font-headline text-primary flex items-center gap-2">
-             Gestion des Données du Tournoi
+              Gestion des Données du Tournoi
           </CardTitle>
         </CardHeader>
         <CardContent className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
@@ -711,32 +597,26 @@ export function GroupManager() {
           <Button onClick={handleBackupData} variant="outline" className="w-full">
             <Download className="ml-2 h-5 w-5" /> Exporter vers un fichier
           </Button>
-          {user && (
-            <Button onClick={handleSaveToFirestore} variant="outline" className="w-full" disabled={isSavingToCloud || authLoading}>
-              {isSavingToCloud ? <Loader2 className="ml-2 h-5 w-5 animate-spin" /> : <CloudUpload className="ml-2 h-5 w-5" /> }
-              {isSavingToCloud ? "Sauvegarde..." : "Sauvegarder sur le Cloud"}
-            </Button>
-          )}
           <Button onClick={handlePrintData} variant="outline" className="w-full">
             <Printer className="ml-2 h-5 w-5" /> Imprimer toutes les données
           </Button>
           <AlertDialog>
             <AlertDialogTrigger asChild>
               <Button variant="destructive" className="w-full md:col-span-1"> {/* Adjusted col-span */}
-                <RefreshCcw className="ml-2 h-5 w-5" /> Réinitialiser les données locales
+                <RefreshCcw className="ml-2 h-5 w-5" /> Réinitialiser les données
               </Button>
             </AlertDialogTrigger>
             <AlertDialogContent dir="rtl">
               <AlertDialogHeader>
                 <AlertDialogTitle>Êtes-vous absolument sûr ?</AlertDialogTitle>
                 <AlertDialogDescription>
-                  Cette action supprimera toutes les données du tournoi stockées localement (groupes, équipes, joueurs et matchs). Cette action ne peut pas être annulée. Les données sauvegardées sur le cloud (si vous êtes connecté et avez sauvegardé) ne seront pas affectées par cette action.
+                  Cette action supprimera toutes les données du tournoi stockées localement (groupes, équipes, joueurs et matchs). Cette action ne peut pas être annulée.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
                 <AlertDialogCancel>Annuler</AlertDialogCancel>
                 <AlertDialogAction onClick={handleResetData}>
-                  Oui, réinitialiser localement
+                  Oui, réinitialiser
                 </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>
@@ -769,7 +649,7 @@ export function GroupManager() {
         </CardContent>
       </Card>
 
-      {groups.length === 0 && dataLoadedRef.current && !isLoadingFromCloud && (
+      {groups.length === 0 && dataLoadedRef.current && (
         <Card className="text-center py-10">
           <CardContent>
             <Users className="mx-auto h-16 w-16 text-muted-foreground mb-4" />
@@ -860,11 +740,11 @@ function GroupCard({ group, onAddTeam, onDeleteTeam, onAddPlayer, onDeletePlayer
           scorer = { ...player, teamName: team.name };
         } else if (player.goals === maxGoals && player.goals > 0) {
             if (scorer && typeof scorer.name === 'string' && typeof player.name === 'string') {
-                 if (!scorer.name.includes(player.name)) {
+                  if (!scorer.name.includes(player.name)) {
                     scorer.name += ` & ${player.name}`;
-                 }
+                  }
             } else {
-                 scorer = { ...player, teamName: team.name };
+                  scorer = { ...player, teamName: team.name };
             }
         }
       });
@@ -909,7 +789,7 @@ function GroupCard({ group, onAddTeam, onDeleteTeam, onAddPlayer, onDeletePlayer
                 <strong>Meilleur buteur du groupe:</strong> {groupScorer.name} ({groupScorer.teamName}) - {groupScorer.goals} buts
               </p>
             )}
-             {(!groupScorer || groupScorer.goals === 0) && (
+              {(!groupScorer || groupScorer.goals === 0) && (
                 <p className="text-sm text-muted-foreground mt-1 flex items-center gap-1">
                     <Target className="w-4 h-4 text-muted-foreground" />
                     Aucun joueur n'a encore marqué de buts dans ce groupe.
@@ -993,7 +873,7 @@ function GroupCard({ group, onAddTeam, onDeleteTeam, onAddPlayer, onDeletePlayer
                       <TableCell className="text-center">{team.goalsAgainst}</TableCell>
                       <TableCell className="text-center">{team.goalDifference > 0 ? `+${team.goalDifference}` : team.goalDifference}</TableCell>
                       <TableCell className="text-center no-print">
-                         <AlertDialog>
+                          <AlertDialog>
                             <AlertDialogTrigger asChild>
                                 <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive/80 w-8 h-8">
                                     <Trash2 className="w-4 h-4" />
@@ -1032,7 +912,7 @@ function GroupCard({ group, onAddTeam, onDeleteTeam, onAddPlayer, onDeletePlayer
             <Accordion type="single" collapsible className="w-full">
                 {sortedTeams.map((team) => (
                     <AccordionItem value={`players-${team.id}-${group.id}`} key={`players-${team.id}-${group.id}`} className="mb-2 border rounded-lg shadow-sm bg-background/30">
-                         <AccordionTrigger className="text-primary hover:text-primary/80 text-base font-semibold px-4 py-3 no-print">
+                          <AccordionTrigger className="text-primary hover:text-primary/80 text-base font-semibold px-4 py-3 no-print">
                             <div className="flex items-center gap-2">
                                 {team.name} - Joueurs ({team.players.length})
                             </div>
@@ -1106,7 +986,7 @@ function GroupCard({ group, onAddTeam, onDeleteTeam, onAddPlayer, onDeletePlayer
                     <span className="font-medium text-foreground">{getTeamName(match.teamAId)}</span>
                     <span className="text-muted-foreground mx-1">vs</span>
                     <span className="font-medium text-foreground">{getTeamName(match.teamBId)}</span>
-                     <Button variant="ghost" size="icon" onClick={() => editingMatchId === match.id ? setEditingMatchId(null) : handleMatchScoreEdit(match)} className="text-primary hover:text-primary/80 w-7 h-7 no-print">
+                      <Button variant="ghost" size="icon" onClick={() => editingMatchId === match.id ? setEditingMatchId(null) : handleMatchScoreEdit(match)} className="text-primary hover:text-primary/80 w-7 h-7 no-print">
                         {editingMatchId === match.id ? <XCircle className="w-4 h-4" /> : <Edit3 className="w-4 h-4" />}
                     </Button>
                   </div>
@@ -1123,8 +1003,8 @@ function GroupCard({ group, onAddTeam, onDeleteTeam, onAddPlayer, onDeletePlayer
                                 className="w-16 h-8 text-xs" 
                                 min="0"
                             />
-                             <Label htmlFor={`scoreB-${match.id}`} className="text-xs whitespace-nowrap">Buts {getTeamName(match.teamBId)}:</Label>
-                             <Input 
+                              <Label htmlFor={`scoreB-${match.id}`} className="text-xs whitespace-nowrap">Buts {getTeamName(match.teamBId)}:</Label>
+                              <Input 
                                 id={`scoreB-${match.id}`} 
                                 type="number" 
                                 value={currentTeamBScore} 
@@ -1164,9 +1044,8 @@ function GroupCard({ group, onAddTeam, onDeleteTeam, onAddPlayer, onDeletePlayer
         </div>
       </CardContent>
       <CardFooter className="border-t pt-4">
-         <p className="text-xs text-muted-foreground w-full text-center">Groupe: {group.name}</p>
+          <p className="text-xs text-muted-foreground w-full text-center">Groupe: {group.name}</p>
       </CardFooter>
     </Card>
   );
 }
-
